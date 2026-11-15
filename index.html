@@ -1,0 +1,2786 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phòng khám DL Mai Xuân Sơn - Quản lý Bệnh nhân & Kho thuốc</title>
+    
+    <!-- PWA & Mobile Android Meta Tags -->
+    <meta name="theme-color" content="#0f766e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PK Mai Xuân Sơn">
+    <link rel="manifest" id="pwa-manifest">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- SheetJS (XLSX) để xuất file Excel thực thụ -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .square-check {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 2px solid #0f766e;
+            border-radius: 4px;
+            display: inline-grid;
+            place-content: center;
+            cursor: pointer;
+            background-color: #fff;
+            transition: all 0.15s ease;
+        }
+        .square-check::before {
+            content: "\f00c";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-size: 13px;
+            color: white;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+        }
+        .square-check:checked {
+            background-color: #0f766e;
+        }
+        .square-check:checked::before {
+            transform: scale(1);
+        }
+        .sticky-col {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+        input, select, textarea {
+            font-size: 16px !important;
+        }
+        @media (min-width: 768px) {
+            input, select, textarea {
+                font-size: 14px !important;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 pb-20 md:pb-8">
+
+    <!-- HEADER PHÒNG KHÁM -->
+    <header class="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-700 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center border border-white/25 shadow-inner shrink-0">
+                    <i class="fa-solid fa-stethoscope text-xl text-emerald-200"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-xl font-extrabold tracking-tight uppercase leading-tight">
+                        Phòng khám DL Mai Xuân Sơn
+                    </h1>
+                    <p class="text-xs text-teal-100 flex flex-wrap items-center gap-2">
+                        <span><i class="fa-solid fa-hospital-user mr-1"></i>Quản lý Bệnh nhân & Kho thuốc</span>
+                        <span id="sync-status-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span> Đã lưu cục bộ
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Thanh công cụ nhanh trên Header -->
+            <div class="flex items-center gap-2">
+                <button onclick="openSyncModal()" class="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-95 transition text-xs sm:text-sm font-semibold flex items-center gap-1.5 border border-white/20 shadow-sm">
+                    <i class="fa-solid fa-cloud-arrow-up text-emerald-200"></i>
+                    <span>Đồng bộ ĐT & PC</span>
+                </button>
+                <button id="install-pwa-btn" onclick="triggerInstallPWA()" class="hidden px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 active:scale-95 transition text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-brands fa-android"></i>
+                    <span>Cài App Android</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- THANH ĐIỀU HƯỚNG 2 PHÂN HỆ CHÍNH -->
+        <nav class="bg-teal-900/50 border-t border-white/10">
+            <div class="max-w-7xl mx-auto px-3 sm:px-6 flex gap-2 py-2 overflow-x-auto">
+                <button id="tab-btn-patients" onclick="switchMainTab('patients')" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition bg-white text-teal-800 shadow">
+                    <i class="fa-solid fa-user-injured text-base"></i>
+                    <span>A. QUẢN LÝ BỆNH NHÂN</span>
+                </button>
+                <button id="tab-btn-inventory" onclick="switchMainTab('inventory')" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition text-teal-100 hover:bg-white/10">
+                    <i class="fa-solid fa-pills text-base"></i>
+                    <span>B. QUẢN LÝ THUỐC & TÀI CHÍNH</span>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- NỘI DUNG CHÍNH -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 pt-5">
+
+        <!-- ===================================================================== -->
+        <!-- PHÂN HỆ A: QUẢN LÝ BỆNH NHÂN                                          -->
+        <!-- ===================================================================== -->
+        <section id="section-patients" class="animate-fade-in space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- CỘT TRÁI (7/12): FORM THÊM BỆNH NHÂN / THÊM LẦN KHÁM MỚI -->
+                <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-gradient-to-r from-teal-50 to-emerald-50 px-5 py-4 border-b border-teal-100 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h2 id="patient-form-title" class="text-base sm:text-lg font-bold text-teal-900 flex items-center gap-2">
+                                <i class="fa-solid fa-file-medical text-teal-600"></i>
+                                <span>1. Thêm bệnh nhân & Kê đơn khám bệnh</span>
+                            </h2>
+                            <p id="patient-form-subtitle" class="text-xs text-slate-500 mt-0.5">Nhập thông tin bệnh nhân mới hoặc chọn bệnh nhân cũ để thêm lần khám</p>
+                        </div>
+                        <button id="btn-reset-patient-form" onclick="resetPatientForm()" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-sm">
+                            <i class="fa-solid fa-rotate-left mr-1"></i>Tạo phiếu mới
+                        </button>
+                    </div>
+
+                    <!-- Banner thông báo khi đang thêm lần khám cho bệnh nhân cũ -->
+                    <div id="existing-patient-banner" class="hidden bg-amber-50 border-b border-amber-200 px-5 py-3 flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 text-amber-900 text-xs sm:text-sm font-semibold">
+                            <i class="fa-solid fa-clock-rotate-left text-amber-600 text-base"></i>
+                            <span>Đang thêm lần khám mới cho hồ sơ: <strong id="banner-patient-name" class="underline"></strong></span>
+                        </div>
+                        <button onclick="resetPatientForm()" class="text-xs font-bold text-amber-800 hover:text-amber-950 bg-amber-200/70 px-2.5 py-1 rounded-lg">
+                            Hủy chọn
+                        </button>
+                    </div>
+
+                    <form id="patient-exam-form" onsubmit="handleSavePatientExam(event)" class="p-4 sm:p-5 space-y-5">
+                        <!-- a. Thông tin hành chính -->
+                        <div class="space-y-3">
+                            <div class="text-xs font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1.5">
+                                <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 inline-flex items-center justify-center text-[11px]">a</span>
+                                Thông tin bệnh nhân
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                <div class="sm:col-span-7">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Họ và tên bệnh nhân <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="pt-name" required placeholder="Ví dụ: Nguyễn Văn An" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 outline-none font-medium">
+                                </div>
+
+                                <!-- Giới tính: Ô vuông tích vào Nam / Nữ -->
+                                <div class="sm:col-span-5">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Giới tính <span class="text-rose-500">*</span></label>
+                                    <div class="flex items-center gap-5 h-[42px] px-3 rounded-xl border border-slate-200 bg-slate-50/70">
+                                        <label class="inline-flex items-center gap-2 cursor-pointer select-none font-semibold text-sm text-slate-700">
+                                            <input type="checkbox" id="gender-male" class="square-check" checked onclick="selectGender('Nam')">
+                                            <span>Nam</span>
+                                        </label>
+                                        <label class="inline-flex items-center gap-2 cursor-pointer select-none font-semibold text-sm text-slate-700">
+                                            <input type="checkbox" id="gender-female" class="square-check" onclick="selectGender('Nữ')">
+                                            <span>Nữ</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                <div class="sm:col-span-5">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Số điện thoại</label>
+                                    <input type="tel" id="pt-phone" placeholder="09xx xxx xxx" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 outline-none">
+                                </div>
+                                <div class="sm:col-span-7">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Địa chỉ</label>
+                                    <input type="text" id="pt-address" placeholder="Thôn/Xóm, Xã/Phường, Tỉnh/TP..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- b & c. Giờ + Ngày + Tháng + Năm khám & Loại bệnh -->
+                        <div class="pt-3 border-t border-slate-100 space-y-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                <div class="sm:col-span-6">
+                                    <div class="text-xs font-bold uppercase tracking-wider text-teal-700 flex items-center justify-between mb-1.5">
+                                        <span class="flex items-center gap-1.5">
+                                            <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 inline-flex items-center justify-center text-[11px]">b</span>
+                                            Giờ + Ngày + Tháng + Năm khám
+                                        </span>
+                                        <button type="button" onclick="setCurrentExamDateTime()" class="text-[11px] font-semibold text-teal-600 hover:underline">
+                                            Hiện tại
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-4 gap-1.5">
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 mb-0.5 text-center">Giờ:Phút</label>
+                                            <input type="time" id="exam-time" required class="w-full px-2 py-2 rounded-xl border border-slate-300 text-center font-semibold text-xs sm:text-sm focus:border-teal-600 outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 mb-0.5 text-center">Ngày</label>
+                                            <input type="number" id="exam-day" min="1" max="31" required class="w-full px-2 py-2 rounded-xl border border-slate-300 text-center font-semibold focus:border-teal-600 outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 mb-0.5 text-center">Tháng</label>
+                                            <input type="number" id="exam-month" min="1" max="12" required class="w-full px-2 py-2 rounded-xl border border-slate-300 text-center font-semibold focus:border-teal-600 outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 mb-0.5 text-center">Năm</label>
+                                            <input type="number" id="exam-year" min="2020" max="2099" required class="w-full px-2 py-2 rounded-xl border border-slate-300 text-center font-semibold focus:border-teal-600 outline-none">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="sm:col-span-6">
+                                    <div class="text-xs font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1.5 mb-1.5">
+                                        <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 inline-flex items-center justify-center text-[11px]">c</span>
+                                        Loại bệnh (Chẩn đoán) <span class="text-rose-500">*</span>
+                                    </div>
+                                    <label class="block text-[10px] text-slate-500 mb-0.5">Nhập tên bệnh / triệu chứng da liễu</label>
+                                    <input type="text" id="exam-disease" required placeholder="VD: Viêm da cơ địa, Nấm da, Mụn trứng cá, Ghẻ..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 outline-none font-medium">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- d. Thuốc kê -->
+                        <div class="pt-3 border-t border-slate-100 space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="text-xs font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1.5">
+                                    <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-800 inline-flex items-center justify-center text-[11px]">d</span>
+                                    Thuốc kê đơn
+                                </div>
+                                <span class="text-[11px] text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                    Gõ tên thuốc để chọn kèm đơn vị tính
+                                </span>
+                            </div>
+
+                            <!-- Thanh tìm kiếm thuốc thông minh -->
+                            <div class="relative">
+                                <div class="flex items-center border-2 border-teal-600/40 focus-within:border-teal-600 rounded-xl bg-teal-50/30 px-3 py-1.5">
+                                    <i class="fa-solid fa-magnifying-glass text-teal-600 mr-2.5"></i>
+                                    <input type="text" id="rx-drug-search" autocomplete="off" placeholder="Gõ tên thuốc cần kê (VD: Fungafin, Bunpil, Kẽm, Vitamin, Acyclovir...)" class="w-full bg-transparent py-1.5 outline-none font-medium text-slate-800 placeholder:text-slate-400">
+                                    <button type="button" id="clear-rx-search" onclick="clearRxSearch()" class="hidden text-slate-400 hover:text-slate-600 px-2">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Dropdown kết quả tìm kiếm thuốc -->
+                                <div id="rx-drug-dropdown" class="hidden absolute left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-slate-200 max-h-64 overflow-y-auto z-30 divide-y divide-slate-100">
+                                </div>
+                            </div>
+
+                            <!-- Bảng danh sách thuốc đã chọn trong đơn -->
+                            <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/40">
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left border-collapse min-w-[540px]">
+                                        <thead>
+                                            <tr class="bg-slate-100 text-slate-600 text-[11px] uppercase font-bold border-b border-slate-200">
+                                                <th class="py-2.5 px-3">Tên thuốc & Đơn vị</th>
+                                                <th class="py-2.5 px-2 w-20 text-center">Số lượng</th>
+                                                <th class="py-2.5 px-2 w-36 text-right">Đơn giá (VNĐ)</th>
+                                                <th class="py-2.5 px-3 w-28 text-right">Thành tiền</th>
+                                                <th class="py-2.5 px-2 w-10 text-center">Xóa</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="rx-items-tbody" class="divide-y divide-slate-200 bg-white text-sm">
+                                            <tr id="rx-empty-row">
+                                                <td colspan="5" class="py-6 text-center text-slate-400 text-xs">
+                                                    <i class="fa-solid fa-prescription-bottle-medical text-2xl mb-1.5 block text-slate-300"></i>
+                                                    Chưa có thuốc nào trong đơn. Hãy gõ tên thuốc ở thanh tìm kiếm phía trên.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Khu vực Công khám, Thanh toán & Tổng SỐ TIỀN -->
+                                <div class="bg-teal-50/70 p-3.5 border-t border-teal-100 space-y-3">
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Tiền thuốc (VNĐ)</label>
+                                            <div id="rx-medicine-subtotal" class="px-3 py-2 rounded-xl bg-white border border-slate-200 font-bold text-slate-800 text-right">
+                                                0 đ
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Công khám thêm (VNĐ)</label>
+                                            <input type="number" id="rx-exam-fee" value="0" min="0" step="1000" 
+                                                   onfocus="if(this.value=='0') this.value='';" 
+                                                   onblur="if(this.value=='') this.value='0'; recalculateRxTotals();" 
+                                                   oninput="recalculateRxTotals()" 
+                                                   class="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 focus:border-teal-600 font-bold text-slate-800 text-right outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Hình thức thanh toán</label>
+                                            <select id="rx-payment-method" class="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 focus:border-teal-600 font-semibold text-slate-800 outline-none">
+                                                <option value="cash">💵 Tiền mặt</option>
+                                                <option value="transfer">🏦 Chuyển khoản</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-teal-200/60">
+                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-teal-900 cursor-pointer">
+                                            <input type="checkbox" id="rx-sync-inventory" checked class="square-check !w-4 !h-4">
+                                            <span>Tự động trừ kho (Số LX) & ghi sổ tài chính tháng hiện tại</span>
+                                        </label>
+                                        <div class="text-right ml-auto">
+                                            <span class="text-xs font-bold uppercase text-teal-800 mr-2">TỔNG SỐ TIỀN:</span>
+                                            <span id="rx-grand-total" class="text-xl sm:text-2xl font-extrabold text-rose-600">0 đ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nút Lưu Phiếu Khám -->
+                        <div class="flex flex-wrap items-center justify-end gap-3 pt-2">
+                            <button type="submit" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-teal-700 to-emerald-600 hover:from-teal-800 hover:to-emerald-700 text-white font-bold text-sm shadow-lg shadow-teal-700/20 active:scale-[0.99] transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-floppy-disk text-base"></i>
+                                <span id="btn-save-patient-text">LƯU HỒ SƠ BỆNH NHÂN & ĐƠN THUỐC</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- CỘT PHẢI (5/12): TÌM KIẾM BỆNH NHÂN & QUẢN LÝ HỒ SƠ KHÁM -->
+                <div class="lg:col-span-5 space-y-5">
+                    <!-- 2. Mục Tìm kiếm bệnh nhân -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+                        <h2 class="text-base sm:text-lg font-bold text-teal-900 flex items-center gap-2 mb-3">
+                            <i class="fa-solid fa-magnifying-glass text-teal-600"></i>
+                            <span>2. Tìm kiếm bệnh nhân</span>
+                        </h2>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">a. Tên bệnh nhân</label>
+                                <div class="relative">
+                                    <input type="text" id="search-pt-name" oninput="renderPatientList()" placeholder="Nhập tên cần tìm..." class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:border-teal-600 outline-none text-sm">
+                                    <i class="fa-solid fa-user text-slate-400 absolute left-3 top-3"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">b. Số điện thoại</label>
+                                <div class="relative">
+                                    <input type="tel" id="search-pt-phone" oninput="renderPatientList()" placeholder="Nhập SĐT..." class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:border-teal-600 outline-none text-sm">
+                                    <i class="fa-solid fa-phone text-slate-400 absolute left-3 top-3"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-xs text-slate-500">
+                            <span>Tổng số hồ sơ: <strong id="total-patients-count" class="text-teal-700">0</strong> bệnh nhân</span>
+                            <button onclick="clearPatientSearch()" class="text-teal-700 font-semibold hover:underline">Hiện tất cả</button>
+                        </div>
+
+                        <!-- Danh sách kết quả bệnh nhân -->
+                        <div id="patient-search-results" class="mt-3 space-y-2 max-h-[290px] overflow-y-auto pr-1">
+                        </div>
+                    </div>
+
+                    <!-- 3. Quản lý hồ sơ khám -->
+                    <div id="patient-record-detail-card" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="bg-slate-800 text-white px-5 py-3.5 flex items-center justify-between">
+                            <h2 class="text-sm sm:text-base font-bold flex items-center gap-2">
+                                <i class="fa-solid fa-folder-open text-emerald-400"></i>
+                                <span>3. Quản lý hồ sơ khám bệnh</span>
+                            </h2>
+                            <span class="text-[11px] text-slate-300">Chi tiết & Tái khám</span>
+                        </div>
+
+                        <div id="patient-record-content" class="p-5">
+                            <div class="text-center py-8 text-slate-400 text-xs">
+                                <i class="fa-solid fa-address-card text-3xl mb-2 text-slate-300 block"></i>
+                                Chọn một bệnh nhân từ danh sách tìm kiếm phía trên để xem đầy đủ thông tin hành chính, các đơn thuốc đã khám và thêm lần khám mới.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- PHÂN HỆ B: QUẢN LÝ THUỐC & TÀI CHÍNH PHÒNG KHÁM THEO THÁNG            -->
+        <!-- ===================================================================== -->
+        <section id="section-inventory" class="hidden animate-fade-in space-y-6">
+            
+            <!-- Thanh điều khiển Tháng, Thêm thuốc mới & Chốt sổ xuất Excel -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2 bg-teal-50 border border-teal-200 px-3.5 py-2 rounded-xl">
+                            <i class="fa-solid fa-calendar-days text-teal-700"></i>
+                            <span class="text-xs font-bold text-teal-900 uppercase">Kỳ sổ sách:</span>
+                            <select id="month-selector" onchange="switchInventoryMonth(this.value)" class="bg-transparent font-extrabold text-teal-800 outline-none cursor-pointer">
+                            </select>
+                        </div>
+                        <span id="month-status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                            Đang hoạt động
+                        </span>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <button onclick="openCreateCustomMonthModal()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-sm active:scale-95 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-calendar-plus"></i>
+                            <span>Tạo kỳ sổ sách mới (Tháng 11...)</span>
+                        </button>
+
+                        <button onclick="openAddDrugModal()" class="px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs sm:text-sm shadow-sm active:scale-95 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus-circle"></i>
+                            <span>Thêm tên thuốc mới</span>
+                        </button>
+
+                        <button onclick="exportCurrentMonthExcel(false)" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-sm active:scale-95 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-excel"></i>
+                            <span>Xuất Excel tháng này</span>
+                        </button>
+
+                        <button id="btn-rollover-month" onclick="openRolloverModal()" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs sm:text-sm shadow-sm active:scale-95 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-forward-step"></i>
+                            <span>Qua tháng mới & Xuất Excel</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ghi chú công thức chuẩn theo yêu cầu -->
+                <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-[11px] text-slate-600">
+                    <div class="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/70">
+                        <strong class="text-teal-800">Tổng SL Nhập:</strong> Số LN + Nhập
+                    </div>
+                    <div class="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/70">
+                        <strong class="text-teal-800">TGN (Tổng giá nhập):</strong> (Số LN + Nhập) × ĐGN
+                    </div>
+                    <div class="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/70">
+                        <strong class="text-blue-800">TGX (Tổng giá xuất):</strong> Số LX × ĐGX
+                    </div>
+                    <div class="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/70">
+                        <strong class="text-emerald-800">Lãi thuốc:</strong> TGX - TGN | <strong class="text-amber-800">Tồn:</strong> (Số LN + Nhập) - Số LX
+                    </div>
+                </div>
+            </div>
+
+            <!-- BẢNG TỔNG HỢP TÀI CHÍNH THÁNG -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                
+                <!-- Mục CÔNG KHÁM & CHUYỂN KHOẢN -->
+                <div class="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xs font-extrabold uppercase text-teal-800 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-user-doctor text-teal-600"></i>
+                                    Mục CÔNG KHÁM
+                                </h3>
+                                <span class="text-[10px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded font-semibold">Hàm SUM</span>
+                            </div>
+                            <div class="flex gap-1.5 mb-2.5">
+                                <input type="number" id="input-exam-fee-item" placeholder="Nhập tiền công khám..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-teal-600">
+                                <button onclick="addFinancialEntry('examFees')" class="px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shrink-0">
+                                    + Thêm
+                                </button>
+                            </div>
+                            <div id="list-exam-fees" class="max-h-32 overflow-y-auto space-y-1 text-xs pr-1">
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-600">TỔNG CÔNG KHÁM:</span>
+                            <span id="stat-total-exam-fee" class="text-base font-extrabold text-teal-700">0 đ</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xs font-extrabold uppercase text-indigo-800 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-building-columns text-indigo-600"></i>
+                                    Mục CHUYỂN KHOẢN
+                                </h3>
+                                <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold">Hàm SUM</span>
+                            </div>
+                            <div class="flex gap-1.5 mb-2.5">
+                                <input type="number" id="input-transfer-item" placeholder="Nhập tiền chuyển khoản..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-indigo-600">
+                                <button onclick="addFinancialEntry('transfers')" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shrink-0">
+                                    + Thêm
+                                </button>
+                            </div>
+                            <div id="list-transfers" class="max-h-32 overflow-y-auto space-y-1 text-xs pr-1">
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-600">TỔNG CHUYỂN KHOẢN:</span>
+                            <span id="stat-total-transfer" class="text-base font-extrabold text-indigo-700">0 đ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Các chỉ số tổng hợp -->
+                <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                        <div class="text-[11px] font-bold text-slate-500 uppercase">Tổng Giá Nhập (TGN)</div>
+                        <div id="stat-total-tgn" class="text-base sm:text-lg font-extrabold text-slate-800 mt-1">0 đ</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Tổng vốn nhập kho</div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                        <div class="text-[11px] font-bold text-blue-600 uppercase">Tổng Giá Xuất (TGX)</div>
+                        <div id="stat-total-tgx" class="text-base sm:text-lg font-extrabold text-blue-700 mt-1">0 đ</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Tổng tiền bán thuốc</div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                        <div class="text-[11px] font-bold text-emerald-600 uppercase">Lãi Thuốc (TGX - TGN)</div>
+                        <div id="stat-total-drug-profit" class="text-base sm:text-lg font-extrabold text-emerald-700 mt-1">0 đ</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Chênh lệch xuất - nhập</div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-4 shadow-sm">
+                        <div class="text-[11px] font-bold text-slate-300 uppercase">6. TỔNG CỘNG</div>
+                        <div id="stat-grand-total" class="text-base sm:text-lg font-extrabold text-amber-300 mt-1">0 đ</div>
+                        <div class="text-[10px] text-slate-400 mt-1">= TGX + Tổng Công khám</div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-teal-700 to-teal-800 text-white rounded-2xl p-4 shadow-sm">
+                        <div class="text-[11px] font-bold text-teal-100 uppercase">7. TIỀN MẶT</div>
+                        <div id="stat-cash-total" class="text-base sm:text-lg font-extrabold text-white mt-1">0 đ</div>
+                        <div class="text-[10px] text-teal-200 mt-1">= Tổng cộng - Chuyển khoản</div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-emerald-600 to-green-700 text-white rounded-2xl p-4 shadow-sm">
+                        <div class="text-[11px] font-bold text-emerald-100 uppercase">8. LỢI NHUẬN</div>
+                        <div id="stat-net-profit" class="text-base sm:text-lg font-extrabold text-white mt-1">0 đ</div>
+                        <div class="text-[10px] text-emerald-100 mt-1">= Lãi thuốc + Công khám</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BẢNG QUẢN LÝ NHẬP - XUẤT - TỒN KHO THUỐC THÁNG -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/60">
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-table-list text-teal-600"></i>
+                            <span>Bảng Quản Lý Nhập - Xuất - Tồn Kho Thuốc Tháng</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Có thể nhập trực tiếp số liệu vào các ô <strong>Số LN</strong>, <strong>Nhập</strong>, <strong>ĐGN</strong>, <strong>Số LX</strong>, <strong>ĐGX</strong> trên bảng. Hệ thống tự tính toán tức thì.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        <select id="filter-drug-category" onchange="renderInventoryTable()" class="px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 outline-none">
+                            <option value="ALL">Tất cả nhóm thuốc (150+)</option>
+                            <option value="ACTIVE">Chỉ hiện thuốc có phát sinh / tồn > 0</option>
+                            <option value="1. THUỐC CHỐNG NẤM">1. Thuốc chống nấm</option>
+                            <option value="2. Thuốc chống nhiễm khuẩn">2. Thuốc chống nhiễm khuẩn</option>
+                            <option value="3. Thuốc chống viêm, ngứa">3. Thuốc chống viêm, ngứa</option>
+                            <option value="4. Thuốc có tác dụng làm tiêu sừng">4. Thuốc làm tiêu sừng</option>
+                            <option value="5. Thuốc trị ghẻ">5. Thuốc trị ghẻ</option>
+                            <option value="Vitamin">Vitamin & Khoáng chất</option>
+                            <option value="Kháng sinh (Beta-lactam & Nitroimidazol)">Kháng sinh</option>
+                            <option value="Giảm đau, hạ sốt & Chống dị ứng">Giảm đau, hạ sốt & Chống dị ứng</option>
+                            <option value="Dạ dày, Phù nề, Virus & Trị mụn">Dạ dày, Phù nề, Virus & Trị mụn</option>
+                            <option value="MỸ PHẨM FIXDERMA">Mỹ phẩm Fixderma</option>
+                            <option value="MỸ PHẨM SONG HÂN">Mỹ phẩm Song Hân</option>
+                            <option value="FOB">FOB</option>
+                            <option value="THIÊN VÂN">Thiên Vân</option>
+                            <option value="DANH MỤC KHÁC">Danh mục khác</option>
+                        </select>
+
+                        <div class="relative flex-1 sm:w-60">
+                            <input type="text" id="search-inventory-drug" oninput="renderInventoryTable()" placeholder="Lọc tên thuốc trong kho..." class="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-medium outline-none focus:border-teal-600">
+                            <i class="fa-solid fa-search text-slate-400 absolute left-2.5 top-2.5 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-[65vh]">
+                    <table class="w-full text-left border-collapse min-w-[1150px] text-xs">
+                        <thead class="bg-slate-800 text-white sticky top-0 z-20">
+                            <tr>
+                                <th class="py-3 px-2.5 text-center w-10">STT</th>
+                                <th class="py-3 px-3 sticky-col bg-slate-800 min-w-[230px]">Tên thuốc / Hoạt chất</th>
+                                <th class="py-3 px-2 text-center w-16">ĐVT</th>
+                                <th class="py-3 px-2 text-center w-20 bg-teal-900/60">Số LN</th>
+                                <th class="py-3 px-2 text-center w-20 bg-teal-900/60">Nhập</th>
+                                <th class="py-3 px-2 text-center w-20 bg-teal-900/80">Tổng SL Nhập</th>
+                                <th class="py-3 px-2 text-right w-28 bg-teal-900/60">ĐGN (đ)</th>
+                                <th class="py-3 px-2.5 text-right w-28 bg-teal-950">TGN (đ)</th>
+                                <th class="py-3 px-2 text-center w-20 bg-blue-900/60">Số LX</th>
+                                <th class="py-3 px-2 text-right w-28 bg-blue-900/60">ĐGX (đ)</th>
+                                <th class="py-3 px-2.5 text-right w-28 bg-blue-950">TGX (đ)</th>
+                                <th class="py-3 px-2.5 text-right w-28 bg-emerald-950">LÃI (đ)</th>
+                                <th class="py-3 px-2.5 text-center w-24 bg-amber-900/80">HÀNG TỒN</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-tbody" class="divide-y divide-slate-200 bg-white">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 1: THÊM TÊN THUỐC MỚI VÀO DANH MỤC                              -->
+    <!-- ===================================================================== -->
+    <div id="modal-add-drug" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+            <div class="bg-teal-800 text-white px-5 py-4 flex items-center justify-between">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-capsules text-emerald-300"></i>
+                    <span>Thêm tên thuốc mới vào hệ thống</span>
+                </h3>
+                <button onclick="closeModal('modal-add-drug')" class="text-white/80 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="handleAddNewDrug(event)" class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nhóm thuốc / Danh mục</label>
+                    <select id="new-drug-category" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium outline-none focus:border-teal-600">
+                        <option value="1. THUỐC CHỐNG NẤM">1. Thuốc chống nấm</option>
+                        <option value="2. Thuốc chống nhiễm khuẩn">2. Thuốc chống nhiễm khuẩn</option>
+                        <option value="3. Thuốc chống viêm, ngứa">3. Thuốc chống viêm, ngứa</option>
+                        <option value="4. Thuốc có tác dụng làm tiêu sừng">4. Thuốc chống tiêu sừng</option>
+                        <option value="5. Thuốc trị ghẻ">5. Thuốc trị ghẻ</option>
+                        <option value="Vitamin">Vitamin</option>
+                        <option value="Kháng sinh (Beta-lactam & Nitroimidazol)">Kháng sinh (Beta-lactam & Nitroimidazol)</option>
+                        <option value="Giảm đau, hạ sốt & Chống dị ứng">Giảm đau, hạ sốt & Chống dị ứng</option>
+                        <option value="Dạ dày, Phù nề, Virus & Trị mụn">Dạ dày, Phù nề, Virus & Trị mụn</option>
+                        <option value="MỸ PHẨM FIXDERMA">Mỹ phẩm Fixderma</option>
+                        <option value="MỸ PHẨM SONG HÂN">Mỹ phẩm Song Hân</option>
+                        <option value="FOB">FOB</option>
+                        <option value="THIÊN VÂN">Thiên Vân</option>
+                        <option value="DANH MỤC KHÁC" selected>Danh mục khác</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tên thuốc & Hạn dùng / Quy cách <span class="text-rose-500">*</span></label>
+                    <input type="text" id="new-drug-name" required placeholder="VD: Kem bôi da ABC 15g 12/2028" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-teal-600">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Đơn vị tính (ĐVT) <span class="text-rose-500">*</span></label>
+                        <select id="new-drug-unit" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-teal-600">
+                            <option value="Tuýp">Tuýp</option>
+                            <option value="Viên">Viên</option>
+                            <option value="Gói">Gói</option>
+                            <option value="Lọ">Lọ</option>
+                            <option value="Chai">Chai</option>
+                            <option value="Hộp">Hộp</option>
+                            <option value="Bánh">Bánh</option>
+                            <option value="Cái">Cái</option>
+                            <option value="Ống">Ống</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Số lượng nhập đầu (LN)</label>
+                        <input type="number" id="new-drug-sln" value="0" min="0" onfocus="if(this.value=='0') this.value='';" onblur="if(this.value=='') this.value='0';" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-teal-600">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Đơn giá nhập (ĐGN)</label>
+                        <input type="number" id="new-drug-dgn" value="0" min="0" step="500" onfocus="if(this.value=='0') this.value='';" onblur="if(this.value=='') this.value='0';" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-teal-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Đơn giá xuất (ĐGX)</label>
+                        <input type="number" id="new-drug-dgx" value="0" min="0" step="500" onfocus="if(this.value=='0') this.value='';" onblur="if(this.value=='') this.value='0';" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-teal-600">
+                    </div>
+                </div>
+                <p class="text-[11px] text-teal-700 bg-teal-50 p-2.5 rounded-xl">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    Thuốc sau khi thêm sẽ tự động xuất hiện ngay trong thanh tìm kiếm kê đơn ở <strong>Mục Quản lý Bệnh nhân</strong>.
+                </p>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('modal-add-drug')" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700">Hủy</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow">Lưu thuốc mới</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 2: CHỐT SỔ THÁNG CŨ -> TẠO THÁNG MỚI & XUẤT EXCEL               -->
+    <!-- ===================================================================== -->
+    <div id="modal-rollover" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+            <div class="bg-amber-500 text-slate-950 px-5 py-4 flex items-center justify-between">
+                <h3 class="font-extrabold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-file-export"></i>
+                    <span>Chốt sổ tháng cũ & Tạo trang tính tháng mới</span>
+                </h3>
+                <button onclick="closeModal('modal-rollover')" class="text-slate-900/80 hover:text-slate-950">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 text-sm">
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-amber-950 text-xs space-y-1.5">
+                    <p class="font-bold">Hệ thống sẽ thực hiện tự động 3 bước sau:</p>
+                    <ul class="list-disc pl-4 space-y-1">
+                        <li>Lưu trữ toàn bộ dữ liệu kho thuốc & tài chính của <strong id="rollover-old-month-label"></strong> vào lịch sử.</li>
+                        <li><strong>Tự động tải xuống 1 file Excel (.xlsx)</strong> báo cáo chi tiết đầy đủ của tháng cũ đó về máy.</li>
+                        <li>Tạo trang tính cho tháng mới: Chuyển toàn bộ cột <strong>HÀNG TỒN</strong> tháng cũ sang cột <strong>Số LN</strong> tháng mới; đưa <strong>Nhập = 0</strong>, <strong>Số LX = 0</strong>, <strong>Công khám = 0</strong>, <strong>Chuyển khoản = 0</strong>.</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tên trang tính tháng mới cần tạo:</label>
+                    <input type="text" id="rollover-new-month-name" placeholder="VD: Tháng 12/2026" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-teal-900 outline-none focus:border-teal-600">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('modal-rollover')" class="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700">Đóng</button>
+                    <button type="button" onclick="executeMonthRollover()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>Xác nhận Xuất Excel & Tạo Tháng Mới</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 2.5: TẠO KỲ SỔ SÁCH MỚI (TỪ THÁNG 11 TRỞ VỀ TRƯỚC / TÙY CHỌN)     -->
+    <!-- ===================================================================== -->
+    <div id="modal-create-custom-month" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+            <div class="bg-indigo-700 text-white px-5 py-4 flex items-center justify-between">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-plus text-emerald-300"></i>
+                    <span>Tạo kỳ sổ sách mới (Tháng 11, Tháng 10...)</span>
+                </h3>
+                <button onclick="closeModal('modal-create-custom-month')" class="text-white/80 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="handleCreateCustomMonth(event)" class="p-5 space-y-4">
+                <p class="text-xs text-slate-600">
+                    Bạn có thể chọn bất kỳ tháng và năm nào (ví dụ tháng 11/2026, tháng 10/2026 hoặc năm trước) để thêm vào danh sách quản lý sổ sách.
+                </p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Chọn Tháng</label>
+                        <select id="custom-month-num" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-indigo-600">
+                            <option value="1">Tháng 1</option>
+                            <option value="2">Tháng 2</option>
+                            <option value="3">Tháng 3</option>
+                            <option value="4">Tháng 4</option>
+                            <option value="5">Tháng 5</option>
+                            <option value="6">Tháng 6</option>
+                            <option value="7">Tháng 7</option>
+                            <option value="8">Tháng 8</option>
+                            <option value="9">Tháng 9</option>
+                            <option value="10">Tháng 10</option>
+                            <option value="11" selected>Tháng 11</option>
+                            <option value="12">Tháng 12</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Chọn Năm</label>
+                        <select id="custom-year-num" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold outline-none focus:border-indigo-600">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                            <option value="2027">2027</option>
+                            <option value="2028">2028</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tên hiển thị kỳ sổ sách:</label>
+                    <input type="text" id="custom-month-label-input" placeholder="VD: Tháng 11/2026" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-bold text-indigo-900 outline-none focus:border-indigo-600">
+                </div>
+
+                <div class="space-y-2 bg-indigo-50/60 p-3 rounded-xl border border-indigo-100">
+                    <label class="flex items-start gap-2 cursor-pointer text-xs font-semibold text-indigo-950">
+                        <input type="checkbox" id="custom-month-copy-stock" checked class="square-check !w-4 !h-4 mt-0.5">
+                        <span>Lấy tồn kho từ tháng gần nhất làm số lượng đầu kỳ (Số LN) cho kỳ này.</span>
+                    </label>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('modal-create-custom-month')" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700">Hủy</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow">Tạo Kỳ Sổ Sách</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 3: ĐỒNG BỘ DỮ LIỆU TỰ ĐỘNG REALTIME GIỮA CÁC ĐIỆN THOẠI & PC    -->
+    <!-- ===================================================================== -->
+    <div id="modal-sync" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-fade-in">
+            <div class="bg-slate-800 text-white px-5 py-4 flex items-center justify-between">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-mobile-screen-button text-emerald-400"></i>
+                    <i class="fa-solid fa-arrows-left-right text-xs text-slate-400"></i>
+                    <i class="fa-solid fa-mobile-screen text-emerald-400"></i>
+                    <span>Đồng bộ tự động Realtime (2 Điện thoại & PC)</span>
+                </h3>
+                <button onclick="closeModal('modal-sync')" class="text-white/80 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs sm:text-sm">
+                
+                <!-- Cách 1: Đồng bộ trực tuyến thời gian thực -->
+                <div class="border border-teal-200 bg-teal-50/50 rounded-xl p-4 space-y-2.5">
+                    <div class="font-bold text-teal-900 flex items-center justify-between">
+                        <span><i class="fa-solid fa-bolt text-amber-500 mr-1.5"></i>Cách 1: Đồng bộ Realtime tự động tức thì</span>
+                        <span id="cloud-conn-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold">Chưa kết nối Cloud</span>
+                    </div>
+                    <p class="text-xs text-slate-600">
+                        Nhập cùng một <strong>Firebase Realtime DB URL</strong> và <strong>Mã Phòng Khám</strong> trên cả 2 điện thoại. Khi máy này bấm Lưu, máy kia sẽ <strong>tự động nhảy số liệu ngay lập tức</strong> mà không cần bấm tải về.
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input type="text" id="sync-firebase-url" placeholder="https://ten-du-an.firebaseio.com" class="px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs outline-none">
+                        <input type="text" id="sync-clinic-room-code" value="PK-MAIXUANSON-01" placeholder="Mã phòng khám chung" class="px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold outline-none">
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="saveCloudConfigAndPush()" class="px-3.5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold">
+                            <i class="fa-solid fa-cloud-arrow-up mr-1"></i>Kết nối & Đẩy dữ liệu máy này lên
+                        </button>
+                        <button onclick="connectAndListenOnly()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                            <i class="fa-solid fa-satellite-dish mr-1"></i>Kết nối & Tự động nhận dữ liệu (Máy 2)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cách 2: Chuyển dữ liệu nhanh qua Tệp sao lưu (.json) -->
+                <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+                    <div class="font-bold text-slate-800">
+                        <i class="fa-solid fa-file-code text-indigo-600 mr-1.5"></i>Cách 2: Đồng bộ qua Tệp sao lưu (Zalo / Bluetooth / Cáp)
+                    </div>
+                    <p class="text-xs text-slate-600">
+                        Xuất tệp sao lưu toàn bộ bệnh nhân & kho thuốc từ máy này, gửi qua Zalo/Drive sang thiết bị kia và bấm <strong>Nhập tệp dữ liệu</strong>.
+                    </p>
+                    <div class="flex flex-wrap gap-2.5">
+                        <button onclick="exportBackupJSON()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Xuất tệp dữ liệu (.json)</span>
+                        </button>
+                        <label class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-upload"></i>
+                            <span>Nhập tệp dữ liệu (.json)</span>
+                            <input type="file" accept=".json" onchange="importBackupJSON(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST THÔNG BÁO GÓC MÀN HÌNH -->
+    <div id="toast-container" class="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-96 z-50 space-y-2 pointer-events-none"></div>
+
+    <script>
+        // =========================================================================
+        // 1. DANH MỤC HƠN 150 LOẠI THUỐC & MỸ PHẨM KHỞI TẠO CHUẨN XÁC THEO YÊU CẦU
+        // =========================================================================
+        const INITIAL_DRUG_CATALOG = [
+            // 1. THUỐC CHỐNG NẤM
+            { category: "1. THUỐC CHỐNG NẤM", name: "Fungafin  15ml", unit: "Tuýp" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "Bunpil 15g     9/2026", unit: "Tuýp" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "Bunpil 15g 12/2028 Nhập6/2026", unit: "Tuýp" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "Griseofulvin 500mg", unit: "Viên" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "MIDUC 100mg 12/2026      Nhập 1/2026", unit: "Viên" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "Sporacid 100mg    6/2028    Nhập 1/2026", unit: "Viên" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "Sporacid 100mg       1/2027", unit: "Viên" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "Micomedil   10/2025", unit: "Tuýp" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "Terbinafin (*)", unit: "Viên" },
+            { category: "1. THUỐC CHỐNG NẤM", name: "UTHAZONE 10g  5/2027", unit: "Tuýp" },
+
+            // 2. Thuốc chống nhiễm khuẩn
+            { category: "2. Thuốc chống nhiễm khuẩn", name: "Neomycin + Bacitracin (*)", unit: "Tuýp" },
+            { category: "2. Thuốc chống nhiễm khuẩn", name: "Povidon iod (*)", unit: "Chai" },
+            { category: "2. Thuốc chống nhiễm khuẩn", name: "Bạc Sulfadiazin                       4/2027", unit: "Tuýp" },
+
+            // 3. Thuốc chống viêm, ngứa
+            { category: "3. Thuốc chống viêm, ngứa", name: "Betamethason (valerat) (*)", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Photitanol Fluocinolon acetonid 8/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Asbeson", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Cadicidin 5g     10/2027 Nhập 4+8/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Cadicidin 5g     8/2027", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Fucipa B     7 /2028    Nhập 8/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Fendexi Forte 10/2028 Nhập 7/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "APISOLVAT 15g    7/2029 Nhập 8/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Nuvats 5g   4/2027          Nhập 3/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Nuvats 5g   11/2027  Nhập 6+8+9/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Clobap 10g   11/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Philgenta", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Fobancort 5g", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Trisula 20g    12/2028       Nhập 3/2026", unit: "Tuýp" },
+            { category: "3. Thuốc chống viêm, ngứa", name: "Trisula 10g    1/2029   Nhập 8/2026", unit: "Tuýp" },
+
+            // 4. Thuốc có tác dụng làm tiêu sừng
+            { category: "4. Thuốc có tác dụng làm tiêu sừng", name: "Acid Salicylic (*)", unit: "Tuýp" },
+            { category: "4. Thuốc có tác dụng làm tiêu sừng", name: "Benzoyl peroxide (*)", unit: "Tuýp" },
+            { category: "4. Thuốc có tác dụng làm tiêu sừng", name: "Fluorouracil", unit: "Tuýp" },
+            { category: "4. Thuốc có tác dụng làm tiêu sừng", name: "Urea (*)", unit: "Tuýp" },
+
+            // 5. Thuốc trị ghẻ
+            { category: "5. Thuốc trị ghẻ", name: "Kem Sebosan 1/2029  Nhập 7/2026", unit: "Tuýp" },
+            { category: "5. Thuốc trị ghẻ", name: "Moscab Gel  8/2027     Nhập 9+ 11 /2025", unit: "Tuýp" },
+            { category: "5. Thuốc trị ghẻ", name: "Moscab 105ml  3/2027          Nhập 9/2025", unit: "Hộp" },
+            { category: "5. Thuốc trị ghẻ", name: "Xịt Sebosan  3/2029  Nhập 7/2029", unit: "Hộp" },
+            { category: "5. Thuốc trị ghẻ", name: "Permethrin (*)", unit: "Tuýp" },
+
+            // Vitamin
+            { category: "Vitamin", name: "Kẽm     8/2028                     Nhập 9/2026", unit: "Lọ" },
+            { category: "Vitamin", name: "Kẽm     3/2028                 Nhập 6/2026", unit: "Lọ" },
+            { category: "Vitamin", name: "Zicumgsv   5/2028               Nhập 9/2025", unit: "Viên" },
+            { category: "Vitamin", name: "Kẽm     6/2029               Nhập 9/2026", unit: "Viên" },
+            { category: "Vitamin", name: "Kẽm     3/2029                  Nhập 5/2026", unit: "Viên" },
+            { category: "Vitamin", name: "Kẽm      9/2026", unit: "Gói" },
+            { category: "Vitamin", name: "VitamimA   12/2026  Nhập6/2026", unit: "Viên" },
+            { category: "Vitamin", name: "VitamimA   5/2026", unit: "Viên" },
+            { category: "Vitamin", name: "Vitamin A  8/2025", unit: "Viên" },
+            { category: "Vitamin", name: "Vitamin 3B     11/2028         Nhập 3/2026", unit: "Viên" },
+            { category: "Vitamin", name: "3B  AGI- NEURIN   3/2028 Nhập 8/2026", unit: "Viên" },
+            { category: "Vitamin", name: "Vitamin C 500mg  7/2028  Nhập 3 +6/2026", unit: "Viên" },
+            { category: "Vitamin", name: "VitaminC 500mg   6/2027      Nhâp 1/2026", unit: "Viên" },
+            { category: "Vitamin", name: "Evictal 400     5/2026            Nhập 5/2025", unit: "Viên" },
+            { category: "Vitamin", name: "Vitamin E  11/2028               Nhập 3/2026", unit: "Viên" },
+            { category: "Vitamin", name: "Vitamin E   4/2029              Nhập 6/2026", unit: "Viên" },
+            { category: "Vitamin", name: "Vitamin E   8/2025", unit: "Viên" },
+
+            // Kháng sinh (Beta-lactam & Nitroimidazol)
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Amoxicilin", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Amoxicilin + Acid Clavulanic", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Cefadroxyl 500mg   7/2027", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Doxycyclin 100mg   3/2029 Nhập 8/2026", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Doxycyclin (hydroclorid)         11/2027", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Hapenxin 500mg   5/2028   Nhập9/2026", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Hapenxin 500mg    2/2028   Nhập 4/2026", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Hepenxin 250mg 3/2029  Nhập 9/2026", unit: "Gói" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Hepnxin 250mg   3/2029  Nhập 5 /2026", unit: "Gói" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Hepnxin 250mg kids  4/2027 Nhập 9/2025", unit: "Gói" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Metronidazol 250mg  2/2027  Nhập 5/2025", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Metronidazol 250mg  5/2027  Nhập 9/2025", unit: "Viên" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Metronidazol            8/2028 Nhập 6/2026", unit: "Tuýp" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Metronidazol            5/2029  Nhập 8/2026", unit: "Tuýp" },
+            { category: "Kháng sinh (Beta-lactam & Nitroimidazol)", name: "Erythromycin", unit: "Viên" },
+
+            // Giảm đau, hạ sốt & Chống dị ứng
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Paracetamol (*)              Nhâp 10/2025", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Hapacol 500mg     8/2028     Nhập 12/2025", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Partamol  500mg  1/2030     Nhập 8/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Hapacol 250mg  5/2027", unit: "Gói" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Clorpheniramin 4mg 12/2028  Nhập 1/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Clorpheniramin 4mg 3/2029   Nhập 4/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Methylprednisolon  7/2028 Nhâp 6/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Predsantyl4mg /2031 Nhập 3+6/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Medexa  16mg  5/2029    Nhập 2/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Medexa  16mg  10/2026    Nhập 4/2025", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Loratadin 10mg   9/2028     Nhập 3/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Loratadin 10mg   3/2029    Nhập 6/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Konlabe 180mg 10/2027 Nhập6 + 9/2026", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Fexguard- 180   02/2027", unit: "Viên" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Desbebe   2/2029          Nhập 8/2026", unit: "Chai" },
+            { category: "Giảm đau, hạ sốt & Chống dị ứng", name: "Desbebe   11/2028          Nhập 6/2026", unit: "Chai" },
+
+            // Dạ dày, Phù nề, Virus & Trị mụn
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Cimetidin  12/2027             Nhập 6/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Cimetidin  1/2029             Nhập 3/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Omeprazol 11/2027            Nhập 5/2025", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Heparus      05/2028           Nhập 9/2025", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Eldalin      5/2029           Nhập 7 +9/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Alphachymotripsin1+2/2028 Nhâp 4+5/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Alphachymotripsin 10/2027 Nhập 1/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Chấm nga  8/2028 Nhập 6+8/2026", unit: "Tuýp" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Chấm nga", unit: "Tuýp" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Neuropentin   11/2027 Nhâp 4/2025", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Neuropentin   8/2027", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Acyclovir 800mg     12/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Medskin Clovir 5g (Hậu giang)     7/2027", unit: "Tuýp" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Medskin Clovir 5g    2/2028           Nhập 8/2025", unit: "Tuýp" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Neu-Maxx Acne  5/2029 Nhập 7++8/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Neu-Maxx Acne   3/2029    Nhập 4/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Zoacnel  20mg       11/2026    Nhập 4/2025", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Adalcrem Plus 15g   7/2028  Nhập 9/2026", unit: "Viên" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Daviskin   10/2026", unit: "Tuýp" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Dipalen Gel 15g", unit: "Tuýp" },
+            { category: "Dạ dày, Phù nề, Virus & Trị mụn", name: "Vertucid gel 15g   10/2027", unit: "Tuýp" },
+
+            // MỸ PHẨM FIXDERMA
+            { category: "MỸ PHẨM FIXDERMA", name: "Cleovera Cream", unit: "Tuýp" },
+            { category: "MỸ PHẨM FIXDERMA", name: "Scar Gel  7ml  6/2028 Nhập 8/2026", unit: "Tuýp" },
+            { category: "MỸ PHẨM FIXDERMA", name: "Scar Gel 7ml 11/2026  Nhập 10/2025", unit: "Tuýp" },
+            { category: "MỸ PHẨM FIXDERMA", name: "Non Drying 60g     1/2028  Nhập 10/2025", unit: "Tuýp" },
+            { category: "MỸ PHẨM FIXDERMA", name: "Non Drying 60g     1/2028  Nhập 3/2026", unit: "Tuýp" },
+            { category: "MỸ PHẨM FIXDERMA", name: "Skafix Plus", unit: "Tuýp" },
+            { category: "MỸ PHẨM FIXDERMA", name: "Fix Skarfix 21", unit: "Tuýp" },
+            { category: "MỸ PHẨM FIXDERMA", name: "Lip Balm dưỡng môi 6/2027 Nhập 8/2026", unit: "Tuýp" },
+            { category: "MỸ PHẨM FIXDERMA", name: "Mặt nạ 5/2025  8/2028", unit: "Tuýp" },
+
+            // MỸ PHẨM SONG HÂN
+            { category: "MỸ PHẨM SONG HÂN", name: "Gentalic 25g        10/2028  Nhập  11/2025", unit: "Tuýp" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Scabe SH-Spray 100ml     11/2027", unit: "Chai" },
+            { category: "MỸ PHẨM SONG HÂN", name: "SH Shower tắm ghẻ 11/2027 Nhập 4/2025", unit: "Chai" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Fungi SH 100ml  1/2028   Nhập 4/2025", unit: "Chai" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Kem ghẻ 20g   12 /2027   Nhập 4/2025", unit: "Tuýp" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Climbazole 25g  6/2027", unit: "Tuýp" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Derma heel balm", unit: "Tuýp" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Derma Emulsion  2/2026", unit: "Chai" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Son dưỡng    11/2027  Nhập 4/2025", unit: "Tuýp" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Lacto Gel     1/2028    Nhập 10/2025", unit: "Chai" },
+            { category: "MỸ PHẨM SONG HÂN", name: "Lacto Gel     9/2028    Nhập 4/2025", unit: "Chai" },
+
+            // FOB
+            { category: "FOB", name: "Fob Derma - Dầu gội 200g   9/2027", unit: "Chai" },
+            { category: "FOB", name: "Fob Derma - Dầu gội 200  1/2028 Nhập 7/2025", unit: "Chai" },
+            { category: "FOB", name: "FOB BODY DERMA  3/2027", unit: "Chai" },
+            { category: "FOB", name: "Fob Bodymed    5/2029    Nhâp 9/2026", unit: "Chai" },
+            { category: "FOB", name: "Fob Bodymed    8/2028    Nhâp 12/2025", unit: "Chai" },
+            { category: "FOB", name: "FOB PHYTO- BABY 3/2027  Nhập 5/2025", unit: "Chai" },
+            { category: "FOB", name: "Fob baby   4/2029     Nhập 9/2026", unit: "Chai" },
+            { category: "FOB", name: "Fob baby   12/202  Nhập 12/2026+1/2026", unit: "Chai" },
+            { category: "FOB", name: "Fob medlo    8/2028     Nhập 1/2026", unit: "Chai" },
+            { category: "FOB", name: "Fob medlo    2/2029     Nhập 9/2026", unit: "Chai" },
+            { category: "FOB", name: "Fob kem bôi da   8/2027  Nhập 7/2025", unit: "Tuýp" },
+            { category: "FOB", name: "Fob Sali-B", unit: "Tuýp" },
+            { category: "FOB", name: "Fob zivio cream", unit: "Tuýp" },
+
+            // THIÊN VÂN
+            { category: "THIÊN VÂN", name: "Ato wash 1/2028+ 10/2028 Nhập 4/2025+2/2026", unit: "Chai" },
+            { category: "THIÊN VÂN", name: "Xà phòng SAFUR   11/2026", unit: "Bánh" },
+            { category: "THIÊN VÂN", name: "Atimupicin   10/2027 Nhập8/2026", unit: "Tuýp" },
+            { category: "THIÊN VÂN", name: "Atimupicin         10/2027   Nhập 11/2025", unit: "Tuýp" },
+            { category: "THIÊN VÂN", name: "Bidotalic            09/2027    Nhập 4/2025", unit: "Tuýp" },
+            { category: "THIÊN VÂN", name: "Bidotalic            09/2027    Nhập 1/2025", unit: "Tuýp" },
+            { category: "THIÊN VÂN", name: "Cystinee Xtra       7/2028    Nhập2/2026", unit: "Viên" },
+            { category: "THIÊN VÂN", name: "Cystinee Xtra        7/2028    Nhập 12/2025", unit: "Viên" },
+            { category: "THIÊN VÂN", name: "Nanosil 25g        12/2027    Nhập 9/2025", unit: "Tuýp" },
+
+            // DANH MỤC KHÁC
+            { category: "DANH MỤC KHÁC", name: "Sữa dưỡng ẩm SUNOHADA", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "Xịt dưỡng ẩm SUNOHADA", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "Mevera       Nhập 4/2025   4/2026", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Ranovat     Nhập 4/2025  8/2027", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Sữa rửa mặt Neutidi Acne Wash da mụn 5/2027", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Sữa rửa mặt HYSEAC GEL                1/2027", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "ZANTIS xà phòng da mụn                   7/2028", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "TRANXAMIC craem dưỡng trắng          8/2027", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Kem chống nắng SUMDFINE               8/2028", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Dầu gội viêm da tiết bã                         2/2028", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "Hồ nước", unit: "Lọ" },
+            { category: "DANH MỤC KHÁC", name: "Diva", unit: "Lọ" },
+            { category: "DANH MỤC KHÁC", name: "Teen Derm  5/2026", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Fix peelonate", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Emla", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Cephalexin 500mg", unit: "Viên" },
+            { category: "DANH MỤC KHÁC", name: "Ceraskin", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Xà phòng giảm mụn 7/2026", unit: "Bánh" },
+            { category: "DANH MỤC KHÁC", name: "Kem dưỡng mờ thâm 1/2027", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Kem chống nắng   2/2026", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "ALMED giữ ẩm  7/2025", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "BIODERMA Atoderm dưỡng ẩm điều trị ngứa", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Cùm miệng", unit: "Cái" },
+            { category: "DANH MỤC KHÁC", name: "Skin prest", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "KOSĐERMA kem dưỡng ẩm 12/2026", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "AVACNE serum 5/2026", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "Tế bào gốc", unit: "Hộp" },
+            { category: "DANH MỤC KHÁC", name: "Auvi sữa rửa mặt 5/2026", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "CeraVe Kem dưỡng ẩm  7/2026", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "FRANCYSTINE 10/2027", unit: "Viên" },
+            { category: "DANH MỤC KHÁC", name: "HYALURONIC SERUM  6/2027", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "Kem chống nắng Hàn quốc  3/2027", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "Lidonalin  3/2027 Nhập 5/2025  4,830", unit: "Ống" },
+            { category: "DANH MỤC KHÁC", name: "Beuticystin 500mg   10/2025", unit: "Viên" },
+            { category: "DANH MỤC KHÁC", name: "LV-Cyn             10/2026", unit: "Viên" },
+            { category: "DANH MỤC KHÁC", name: "Dưỡng ẩm AKNESV18                    11/2028", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Mybestie GELNANO BAC                11/2028", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Mybestes AKNESV18                     7/2028", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Ocean Health BICOLD       Kẽm       3/2026", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "Sữa tắm AUVI24", unit: "Chai" },
+            { category: "DANH MỤC KHÁC", name: "Nano bạc", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "BIODERMA chống nắng", unit: "Tuýp" },
+            { category: "DANH MỤC KHÁC", name: "Namex Keloid sẹo lồi", unit: "Tuýp" }
+        ];
+
+        // =========================================================================
+        // 2. TRẠNG THÁI ỨNG DỤNG (STATE) & LƯU TRỮ BỀN VỮNG
+        // =========================================================================
+        const STORAGE_KEY = 'PK_MAI_XUAN_SON_DATA_V3';
+
+        let appState = {
+            drugs: [],
+            patients: [],
+            months: [],
+            activeMonthId: '',
+            cloudConfig: {
+                url: '',
+                roomCode: 'PK-MAIXUANSON-01'
+            }
+        };
+
+        let currentRxItems = [];
+        let selectedGender = 'Nam';
+        let editingExistingPatientId = null;
+        let viewedPatientId = null;
+
+        // Biến quản lý đồng bộ Realtime tự động giữa các thiết bị
+        let realtimeEventSource = null;
+        let realtimePollTimer = null;
+        let lastSyncedTimestamp = '';
+        let isPushingToCloud = false;
+
+        // =========================================================================
+        // 3. KHỞI TẠO HỆ THỐNG & PWA MANIFEST CHO ANDROID
+        // =========================================================================
+        window.onload = function() {
+            setupPWAManifest();
+            loadAppState();
+            setCurrentExamDateTime();
+            setupRxAutocomplete();
+            setupCustomMonthSync();
+            renderAll();
+            startRealtimeCloudListener();
+        };
+
+        function setupPWAManifest() {
+            const manifest = {
+                name: "Phòng khám DL Mai Xuân Sơn",
+                short_name: "PK Mai Xuân Sơn",
+                start_url: ".",
+                display: "standalone",
+                background_color: "#0f766e",
+                theme_color: "#0f766e",
+                icons: [
+                    {
+                        src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230f766e'/%3E%3Cpath d='M43 22h14v21h21v14H57v21H43V57H22V43h21z' fill='white'/%3E%3C/svg%3E",
+                        sizes: "192x192",
+                        type: "image/svg+xml"
+                    }
+                ]
+            };
+            const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            document.getElementById('pwa-manifest').setAttribute('href', URL.createObjectURL(blob));
+        }
+
+        let deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-pwa-btn').classList.remove('hidden');
+        });
+
+        function triggerInstallPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => {
+                    deferredPrompt = null;
+                    document.getElementById('install-pwa-btn').classList.add('hidden');
+                });
+            } else {
+                showToast('Trên trình duyệt Chrome Android: Nhấn dấu 3 chấm (⋮) góc trên -> Chọn "Thêm vào màn hình chính" để cài thành App!', 'info');
+            }
+        }
+
+        function loadAppState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && Array.isArray(parsed.drugs) && parsed.drugs.length > 0) {
+                        appState = parsed;
+                        if (!appState.cloudConfig) {
+                            appState.cloudConfig = { url: '', roomCode: 'PK-MAIXUANSON-01' };
+                        }
+                        sortMonthsChronologically();
+                        updateCloudStatusUI();
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error("Lỗi đọc dữ liệu:", e);
+            }
+
+            const now = new Date();
+            const currentMonthLabel = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+            const currentMonthId = `M_${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            const initializedDrugs = INITIAL_DRUG_CATALOG.map((item, idx) => ({
+                id: 'DRUG_' + (idx + 1).toString().padStart(4, '0'),
+                category: item.category,
+                name: item.name.trim(),
+                unit: item.unit || 'Tuýp',
+                savedSellPrice: 0
+            }));
+
+            const initialMonthItems = {};
+            initializedDrugs.forEach(d => {
+                initialMonthItems[d.id] = { sln: 0, nhap: 0, dgn: 0, slx: 0, dgx: 0 };
+            });
+
+            appState = {
+                drugs: initializedDrugs,
+                patients: [],
+                months: [
+                    {
+                        id: currentMonthId,
+                        label: currentMonthLabel,
+                        yearNum: now.getFullYear(),
+                        monthNum: now.getMonth() + 1,
+                        isClosed: false,
+                        items: initialMonthItems,
+                        examFees: [],
+                        transfers: []
+                    }
+                ],
+                activeMonthId: currentMonthId,
+                cloudConfig: {
+                    url: '',
+                    roomCode: 'PK-MAIXUANSON-01'
+                }
+            };
+            saveAppState(false);
+        }
+
+        function sortMonthsChronologically() {
+            if (!appState.months) return;
+            appState.months.forEach(m => {
+                if (!m.yearNum || !m.monthNum) {
+                    const match = m.label.match(/(\d+)\/(\d+)/);
+                    if (match) {
+                        m.monthNum = parseInt(match[1]);
+                        m.yearNum = parseInt(match[2]);
+                    } else {
+                        m.monthNum = 1;
+                        m.yearNum = 2026;
+                    }
+                }
+            });
+            appState.months.sort((a, b) => {
+                if (a.yearNum !== b.yearNum) return a.yearNum - b.yearNum;
+                return a.monthNum - b.monthNum;
+            });
+        }
+
+        function saveAppState(autoCloudPush = true) {
+            try {
+                sortMonthsChronologically();
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+                const badge = document.getElementById('sync-status-badge');
+                if (badge) {
+                    const isCloud = !!(appState.cloudConfig && appState.cloudConfig.url);
+                    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-300 ${isCloud ? 'animate-ping' : ''}"></span> ${isCloud ? 'Realtime Cloud' : 'Đã lưu'} ${new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}`;
+                }
+                if (autoCloudPush && appState.cloudConfig && appState.cloudConfig.url) {
+                    pushToCloudSilent();
+                }
+            } catch (e) {
+                showToast('Không thể lưu dữ liệu vào bộ nhớ trình duyệt!', 'error');
+            }
+        }
+
+        function getActiveMonth() {
+            return appState.months.find(m => m.id === appState.activeMonthId) || appState.months[appState.months.length - 1];
+        }
+
+        function formatMoney(num) {
+            const val = Math.round(Number(num) || 0);
+            return val.toLocaleString('vi-VN') + ' đ';
+        }
+
+        function formatNumber(num) {
+            return (Number(num) || 0).toLocaleString('vi-VN');
+        }
+
+        // =========================================================================
+        // 4. CHUYỂN TAB PHÂN HỆ A & PHÂN HỆ B
+        // =========================================================================
+        function switchMainTab(tab) {
+            const secPatients = document.getElementById('section-patients');
+            const secInventory = document.getElementById('section-inventory');
+            const btnPatients = document.getElementById('tab-btn-patients');
+            const btnInventory = document.getElementById('tab-btn-inventory');
+
+            if (tab === 'patients') {
+                secPatients.classList.remove('hidden');
+                secInventory.classList.add('hidden');
+                btnPatients.className = "flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition bg-white text-teal-800 shadow";
+                btnInventory.className = "flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition text-teal-100 hover:bg-white/10";
+                renderPatientList();
+            } else {
+                secPatients.classList.add('hidden');
+                secInventory.classList.remove('hidden');
+                btnInventory.className = "flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition bg-white text-teal-800 shadow";
+                btnPatients.className = "flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition text-teal-100 hover:bg-white/10";
+                renderInventorySection();
+            }
+        }
+
+        // =========================================================================
+        // 5. PHÂN HỆ A: QUẢN LÝ BỆNH NHÂN
+        // =========================================================================
+        function selectGender(gender) {
+            selectedGender = gender;
+            document.getElementById('gender-male').checked = (gender === 'Nam');
+            document.getElementById('gender-female').checked = (gender === 'Nữ');
+        }
+
+        function setCurrentExamDateTime() {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('exam-time').value = `${hh}:${mm}`;
+            document.getElementById('exam-day').value = now.getDate();
+            document.getElementById('exam-month').value = now.getMonth() + 1;
+            document.getElementById('exam-year').value = now.getFullYear();
+        }
+
+        function setupRxAutocomplete() {
+            const input = document.getElementById('rx-drug-search');
+            const dropdown = document.getElementById('rx-drug-dropdown');
+            const clearBtn = document.getElementById('clear-rx-search');
+
+            input.addEventListener('input', () => {
+                const kw = input.value.trim().toLowerCase();
+                clearBtn.classList.toggle('hidden', kw.length === 0);
+                renderRxDropdown(kw);
+            });
+
+            input.addEventListener('focus', () => {
+                renderRxDropdown(input.value.trim().toLowerCase());
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        function clearRxSearch() {
+            const input = document.getElementById('rx-drug-search');
+            input.value = '';
+            document.getElementById('clear-rx-search').classList.add('hidden');
+            document.getElementById('rx-drug-dropdown').classList.add('hidden');
+        }
+
+        function renderRxDropdown(keyword) {
+            const dropdown = document.getElementById('rx-drug-dropdown');
+            const month = getActiveMonth();
+
+            let matches = appState.drugs;
+            if (keyword) {
+                matches = appState.drugs.filter(d =>
+                    d.name.toLowerCase().includes(keyword) ||
+                    d.category.toLowerCase().includes(keyword)
+                );
+            } else {
+                matches = appState.drugs.slice(0, 30);
+            }
+
+            if (matches.length === 0) {
+                dropdown.innerHTML = `
+                    <div class="p-4 text-center text-xs text-slate-500">
+                        Không tìm thấy thuốc "${keyword}". 
+                        <button type="button" onclick="openAddDrugModal('${keyword.replace(/'/g, "\\'")}')" class="text-teal-700 font-bold underline ml-1">
+                            + Thêm thuốc này ngay
+                        </button>
+                    </div>`;
+                dropdown.classList.remove('hidden');
+                return;
+            }
+
+            dropdown.innerHTML = matches.slice(0, 40).map(drug => {
+                const mItem = month.items[drug.id] || { sln: 0, nhap: 0, slx: 0, dgx: 0 };
+                const stock = (Number(mItem.sln) + Number(mItem.nhap)) - Number(mItem.slx);
+                const knownPrice = drug.savedSellPrice || mItem.dgx || 0;
+
+                return `
+                    <button type="button" onclick="addDrugToRx('${drug.id}')" class="w-full text-left px-4 py-2.5 hover:bg-teal-50 transition flex items-center justify-between gap-2 group">
+                        <div>
+                            <div class="font-bold text-slate-800 text-xs sm:text-sm group-hover:text-teal-800">
+                                ${drug.name}
+                                <span class="ml-1.5 inline-block px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[11px] font-extrabold">
+                                    ĐVT: ${drug.unit}
+                                </span>
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">
+                                ${drug.category} • Tồn kho hiện tại: <strong class="${stock > 0 ? 'text-emerald-600' : 'text-rose-500'}">${stock}</strong> ${drug.unit}
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            ${knownPrice > 0 
+                                ? `<span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-lg">${formatMoney(knownPrice)}</span>` 
+                                : `<span class="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded-lg font-medium">Chưa có giá (tự nhập)</span>`
+                            }
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            dropdown.classList.remove('hidden');
+        }
+
+        function addDrugToRx(drugId) {
+            const drug = appState.drugs.find(d => d.id === drugId);
+            if (!drug) return;
+
+            const month = getActiveMonth();
+            const mItem = month.items[drugId] || { dgx: 0 };
+            const savedPrice = Number(drug.savedSellPrice) || Number(mItem.dgx) || 0;
+
+            const existing = currentRxItems.find(item => item.drugId === drugId);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                currentRxItems.push({
+                    drugId: drug.id,
+                    name: drug.name,
+                    unit: drug.unit,
+                    qty: 1,
+                    price: savedPrice,
+                    isEditingPrice: savedPrice === 0
+                });
+            }
+
+            clearRxSearch();
+            renderRxItemsTable();
+        }
+
+        function renderRxItemsTable() {
+            const tbody = document.getElementById('rx-items-tbody');
+            if (currentRxItems.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="rx-empty-row">
+                        <td colspan="5" class="py-6 text-center text-slate-400 text-xs">
+                            <i class="fa-solid fa-prescription-bottle-medical text-2xl mb-1.5 block text-slate-300"></i>
+                            Chưa có thuốc nào trong đơn. Hãy gõ tên thuốc ở thanh tìm kiếm phía trên.
+                        </td>
+                    </tr>`;
+                recalculateRxTotals();
+                return;
+            }
+
+            tbody.innerHTML = currentRxItems.map((item, index) => {
+                const lineTotal = (Number(item.qty) || 0) * (Number(item.price) || 0);
+                return `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-2.5 px-3">
+                            <div class="font-bold text-slate-800 text-xs sm:text-sm">${item.name}</div>
+                            <span class="inline-block mt-0.5 px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                                Đơn vị: ${item.unit}
+                            </span>
+                        </td>
+                        <td class="py-2.5 px-2 text-center">
+                            <input type="number" min="1" value="${item.qty}" 
+                                   onfocus="if(this.value=='1' || this.value=='0') this.value='';" 
+                                   onblur="if(this.value=='') this.value='1'; updateRxItemQty(${index}, this.value);" 
+                                   onchange="updateRxItemQty(${index}, this.value)" 
+                                   class="w-16 px-2 py-1.5 rounded-lg border border-slate-300 text-center font-bold text-slate-800 focus:border-teal-600 outline-none">
+                        </td>
+                        <td class="py-2.5 px-2 text-right">
+                            ${item.isEditingPrice ? `
+                                <div class="flex flex-col items-end gap-1.5">
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" min="0" step="500" value="${item.price}" id="rx-price-input-${index}" placeholder="Nhập giá..." 
+                                               onfocus="if(this.value=='0') this.value='';" 
+                                               onblur="if(this.value=='') this.value='0';"
+                                               class="w-24 px-2 py-1 rounded-lg border-2 border-amber-400 bg-amber-50/40 text-right font-bold text-slate-900 outline-none">
+                                        <button type="button" onclick="openSavePriceOptions(${index})" title="Lưu đơn giá" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0">
+                                            <i class="fa-solid fa-check"></i> Lưu
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <span class="font-bold text-blue-700">${formatNumber(item.price)} đ</span>
+                                    <button type="button" onclick="enableEditRxItemPrice(${index})" title="Mở ra chỉnh sửa lại giá" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-800 text-[11px] font-semibold transition">
+                                        <i class="fa-solid fa-pen"></i> Sửa
+                                    </button>
+                                </div>
+                            `}
+                        </td>
+                        <td class="py-2.5 px-3 text-right font-extrabold text-slate-900">
+                            ${formatMoney(lineTotal)}
+                        </td>
+                        <td class="py-2.5 px-2 text-center">
+                            <button type="button" onclick="removeRxItem(${index})" class="w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-50 inline-flex items-center justify-center">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            recalculateRxTotals();
+        }
+
+        function updateRxItemQty(index, val) {
+            const qty = Math.max(1, parseInt(val) || 1);
+            currentRxItems[index].qty = qty;
+            renderRxItemsTable();
+        }
+
+        function enableEditRxItemPrice(index) {
+            currentRxItems[index].isEditingPrice = true;
+            renderRxItemsTable();
+            setTimeout(() => {
+                const inp = document.getElementById(`rx-price-input-${index}`);
+                if (inp) { inp.focus(); inp.select(); }
+            }, 30);
+        }
+
+        // Hộp thoại lựa chọn lưu đơn giá xuất
+        function openSavePriceOptions(index) {
+            const inp = document.getElementById(`rx-price-input-${index}`);
+            const newPrice = Math.max(0, Number(inp ? inp.value : currentRxItems[index].price) || 0);
+            const item = currentRxItems[index];
+
+            const existingModal = document.getElementById('modal-save-price-choice');
+            if (existingModal) existingModal.remove();
+
+            const modalHTML = `
+                <div id="modal-save-price-choice" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-fade-in p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b pb-3">
+                            <h3 class="font-bold text-base text-teal-900 flex items-center gap-2">
+                                <i class="fa-solid fa-coins text-amber-500"></i>
+                                <span>Tùy chọn lưu Đơn giá xuất (${formatMoney(newPrice)})</span>
+                            </h3>
+                            <button onclick="document.getElementById('modal-save-price-choice').remove()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+                        </div>
+                        <p class="text-xs text-slate-600">
+                            Bạn đang chỉnh sửa giá của thuốc: <strong class="text-slate-900">${item.name}</strong>. Hãy chọn 1 trong 2 hình thức lưu đơn giá xuất dưới đây:
+                        </p>
+                        <div class="space-y-2.5">
+                            <button type="button" onclick="executeSavePriceChoice(${index}, ${newPrice}, 1)" class="w-full text-left p-3 rounded-xl border border-teal-200 bg-teal-50/50 hover:bg-teal-100/70 transition flex items-start gap-3">
+                                <i class="fa-solid fa-circle-dot text-teal-600 mt-0.5"></i>
+                                <div>
+                                    <div class="font-bold text-teal-900 text-xs sm:text-sm">1. Chỉ lưu cho lần khám này (Kho không đổi)</div>
+                                    <div class="text-[11px] text-slate-500 mt-0.5">Đơn giá này chỉ áp dụng vào doanh thu của phiếu khám này, giữ nguyên đơn giá cũ trong quản lý kho.</div>
+                                </div>
+                            </button>
+                            <button type="button" onclick="executeSavePriceChoice(${index}, ${newPrice}, 2)" class="w-full text-left p-3 rounded-xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/70 transition flex items-start gap-3">
+                                <i class="fa-solid fa-circle-dot text-blue-600 mt-0.5"></i>
+                                <div>
+                                    <div class="font-bold text-blue-900 text-xs sm:text-sm">2. Lưu đồng thời vào Quản lý Kho (Đơn giá mặc định)</div>
+                                    <div class="text-[11px] text-slate-500 mt-0.5">Đơn giá xuất của thuốc này trong kho tháng hiện tại và các đơn kê sau sẽ tự động cập nhật theo giá mới này.</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        function executeSavePriceChoice(index, newPrice, mode) {
+            const item = currentRxItems[index];
+            item.price = newPrice;
+            item.isEditingPrice = false;
+
+            if (mode === 2) {
+                const drug = appState.drugs.find(d => d.id === item.drugId);
+                if (drug) drug.savedSellPrice = newPrice;
+                const month = getActiveMonth();
+                if (month && month.items[item.drugId]) {
+                    month.items[item.drugId].dgx = newPrice;
+                }
+                showToast(`Đã cập nhật đơn giá ${formatMoney(newPrice)} cho kho và đơn khám!`, 'success');
+            } else {
+                showToast(`Đã áp dụng đơn giá ${formatMoney(newPrice)} cho lần khám này!`, 'success');
+            }
+
+            const modal = document.getElementById('modal-save-price-choice');
+            if (modal) modal.remove();
+
+            saveAppState();
+            renderRxItemsTable();
+            renderInventoryTable();
+        }
+
+        function removeRxItem(index) {
+            currentRxItems.splice(index, 1);
+            renderRxItemsTable();
+        }
+
+        function recalculateRxTotals() {
+            currentRxItems.forEach((item, idx) => {
+                if (item.isEditingPrice) {
+                    const inp = document.getElementById(`rx-price-input-${idx}`);
+                    if (inp) item.price = Math.max(0, Number(inp.value) || 0);
+                }
+            });
+
+            const medSubtotal = currentRxItems.reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
+            const examFee = Math.max(0, Number(document.getElementById('rx-exam-fee').value) || 0);
+            const grandTotal = medSubtotal + examFee;
+
+            document.getElementById('rx-medicine-subtotal').textContent = formatMoney(medSubtotal);
+            document.getElementById('rx-grand-total').textContent = formatMoney(grandTotal);
+        }
+
+        function handleSavePatientExam(e) {
+            e.preventDefault();
+
+            currentRxItems.forEach((item, idx) => {
+                if (item.isEditingPrice) {
+                    const inp = document.getElementById(`rx-price-input-${idx}`);
+                    const val = Math.max(0, Number(inp ? inp.value : item.price) || 0);
+                    item.price = val;
+                    item.isEditingPrice = false;
+                }
+            });
+
+            const name = document.getElementById('pt-name').value.trim();
+            const phone = document.getElementById('pt-phone').value.trim();
+            const address = document.getElementById('pt-address').value.trim();
+            const time = document.getElementById('exam-time').value;
+            const day = String(document.getElementById('exam-day').value).padStart(2, '0');
+            const month = String(document.getElementById('exam-month').value).padStart(2, '0');
+            const year = document.getElementById('exam-year').value;
+            const disease = document.getElementById('exam-disease').value.trim();
+            const examFee = Math.max(0, Number(document.getElementById('rx-exam-fee').value) || 0);
+            const paymentMethod = document.getElementById('rx-payment-method').value;
+            const syncInventory = document.getElementById('rx-sync-inventory').checked;
+
+            const medTotal = currentRxItems.reduce((s, i) => s + i.qty * i.price, 0);
+            const grandTotal = medTotal + examFee;
+
+            const visitRecord = {
+                visitId: 'V_' + Date.now(),
+                dateTimeDisplay: `${time} - Ngày ${day}/${month}/${year}`,
+                time, day, month, year,
+                disease,
+                prescriptions: currentRxItems.map(i => ({
+                    drugId: i.drugId,
+                    name: i.name,
+                    unit: i.unit,
+                    qty: i.qty,
+                    price: i.price,
+                    subtotal: i.qty * i.price
+                })),
+                medTotal,
+                examFee,
+                grandTotal,
+                paymentMethod
+            };
+
+            let targetPatientId = editingExistingPatientId;
+
+            if (editingExistingPatientId) {
+                const pt = appState.patients.find(p => p.id === editingExistingPatientId);
+                if (pt) {
+                    pt.name = name;
+                    pt.gender = selectedGender;
+                    pt.phone = phone;
+                    pt.address = address;
+                    pt.visits.unshift(visitRecord);
+                }
+            } else {
+                targetPatientId = 'PT_' + Date.now();
+                appState.patients.unshift({
+                    id: targetPatientId,
+                    name,
+                    gender: selectedGender,
+                    phone,
+                    address,
+                    visits: [visitRecord]
+                });
+            }
+
+            if (syncInventory) {
+                const activeM = getActiveMonth();
+                if (activeM && !activeM.isClosed) {
+                    currentRxItems.forEach(item => {
+                        if (!activeM.items[item.drugId]) {
+                            activeM.items[item.drugId] = { sln: 0, nhap: 0, dgn: 0, slx: 0, dgx: item.price };
+                        }
+                        activeM.items[item.drugId].slx = (Number(activeM.items[item.drugId].slx) || 0) + Number(item.qty);
+                        if (item.price > 0) {
+                            activeM.items[item.drugId].dgx = Number(item.price);
+                        }
+                    });
+
+                    if (examFee > 0) {
+                        activeM.examFees.push({
+                            id: 'EF_' + Date.now() + Math.random(),
+                            amount: examFee,
+                            note: `BN: ${name} (${day}/${month})`,
+                            time: `${day}/${month}/${year}`
+                        });
+                    }
+
+                    if (paymentMethod === 'transfer' && grandTotal > 0) {
+                        activeM.transfers.push({
+                            id: 'TR_' + Date.now() + Math.random(),
+                            amount: grandTotal,
+                            note: `CK BN: ${name} (${day}/${month})`,
+                            time: `${day}/${month}/${year}`
+                        });
+                    }
+                }
+            }
+
+            saveAppState();
+            viewedPatientId = targetPatientId;
+            renderPatientList();
+            viewPatientRecord(targetPatientId);
+            resetPatientForm();
+            showToast(`Đã lưu hồ sơ khám bệnh cho bệnh nhân "${name}"!`, 'success');
+        }
+
+        function resetPatientForm() {
+            editingExistingPatientId = null;
+            document.getElementById('existing-patient-banner').classList.add('hidden');
+            document.getElementById('patient-form-title').innerHTML = `<i class="fa-solid fa-file-medical text-teal-600"></i><span>1. Thêm bệnh nhân & Kê đơn khám bệnh</span>`;
+            document.getElementById('btn-save-patient-text').textContent = 'LƯU HỒ SƠ BỆNH NHÂN & ĐƠN THUỐC';
+
+            document.getElementById('pt-name').value = '';
+            document.getElementById('pt-phone').value = '';
+            document.getElementById('pt-address').value = '';
+            document.getElementById('exam-disease').value = '';
+            document.getElementById('rx-exam-fee').value = '0';
+            document.getElementById('rx-payment-method').value = 'cash';
+            selectGender('Nam');
+            setCurrentExamDateTime();
+
+            currentRxItems = [];
+            renderRxItemsTable();
+        }
+
+        function startNewVisitForExistingPatient(patientId) {
+            const pt = appState.patients.find(p => p.id === patientId);
+            if (!pt) return;
+
+            editingExistingPatientId = pt.id;
+            document.getElementById('existing-patient-banner').classList.remove('hidden');
+            document.getElementById('banner-patient-name').textContent = `${pt.name} (${pt.phone || 'Không SĐT'})`;
+            document.getElementById('patient-form-title').innerHTML = `<i class="fa-solid fa-notes-medical text-amber-600"></i><span>Thêm lần khám mới cho bệnh nhân cũ</span>`;
+            document.getElementById('btn-save-patient-text').textContent = 'LƯU LẦN KHÁM MỚI VÀO HỒ SƠ';
+
+            document.getElementById('pt-name').value = pt.name;
+            document.getElementById('pt-phone').value = pt.phone || '';
+            document.getElementById('pt-address').value = pt.address || '';
+            selectGender(pt.gender || 'Nam');
+
+            setCurrentExamDateTime();
+            document.getElementById('exam-disease').value = '';
+            document.getElementById('rx-exam-fee').value = '0';
+            currentRxItems = [];
+            renderRxItemsTable();
+
+            document.getElementById('patient-exam-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showToast(`Đang nhập lần khám mới cho BN ${pt.name}`, 'info');
+        }
+
+        function deletePatientVisit(patientId, visitId) {
+            if (!confirm('Bạn có chắc chắn muốn xóa lần khám bệnh này không?')) return;
+            const pt = appState.patients.find(p => p.id === patientId);
+            if (!pt) return;
+
+            pt.visits = pt.visits.filter(v => v.visitId !== visitId);
+            if (pt.visits.length === 0) {
+                appState.patients = appState.patients.filter(p => p.id !== patientId);
+                viewedPatientId = null;
+                document.getElementById('patient-record-content').innerHTML = `
+                    <div class="text-center py-8 text-slate-400 text-xs">
+                        <i class="fa-solid fa-address-card text-3xl mb-2 text-slate-300 block"></i>
+                        Chọn một bệnh nhân từ danh sách tìm kiếm phía trên để xem đầy đủ thông tin.
+                    </div>`;
+            } else {
+                viewPatientRecord(patientId);
+            }
+
+            saveAppState();
+            renderPatientList();
+            showToast('Đã xóa lần khám bệnh!', 'success');
+        }
+
+        function deleteEntirePatient(patientId) {
+            const pt = appState.patients.find(p => p.id === patientId);
+            if (!pt) return;
+            if (!confirm(`Bạn có chắc chắn muốn xóa toàn bộ hồ sơ của bệnh nhân "${pt.name}" không?`)) return;
+
+            appState.patients = appState.patients.filter(p => p.id !== patientId);
+            viewedPatientId = null;
+            document.getElementById('patient-record-content').innerHTML = `
+                <div class="text-center py-8 text-slate-400 text-xs">
+                    <i class="fa-solid fa-address-card text-3xl mb-2 text-slate-300 block"></i>
+                    Chọn một bệnh nhân từ danh sách tìm kiếm phía trên để xem đầy đủ thông tin.
+                </div>`;
+
+            saveAppState();
+            renderPatientList();
+            showToast('Đã xóa toàn bộ hồ sơ bệnh nhân!', 'success');
+        }
+
+        function clearPatientSearch() {
+            document.getElementById('search-pt-name').value = '';
+            document.getElementById('search-pt-phone').value = '';
+            renderPatientList();
+        }
+
+        function renderPatientList() {
+            const nameKw = document.getElementById('search-pt-name').value.trim().toLowerCase();
+            const phoneKw = document.getElementById('search-pt-phone').value.trim().toLowerCase();
+            const container = document.getElementById('patient-search-results');
+
+            document.getElementById('total-patients-count').textContent = appState.patients.length;
+
+            const filtered = appState.patients.filter(pt => {
+                const matchName = !nameKw || pt.name.toLowerCase().includes(nameKw);
+                const matchPhone = !phoneKw || (pt.phone && pt.phone.toLowerCase().includes(phoneKw));
+                return matchName && matchPhone;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-slate-400 text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        ${appState.patients.length === 0 
+                            ? 'Chưa có bệnh nhân nào được lưu. Hãy thêm bệnh nhân ở cột bên trái.' 
+                            : 'Không tìm thấy bệnh nhân phù hợp với từ khóa.'}
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(pt => {
+                const lastVisit = pt.visits[0];
+                const isSelected = pt.id === viewedPatientId;
+                return `
+                    <div onclick="viewPatientRecord('${pt.id}')" class="p-3 rounded-xl border cursor-pointer transition flex items-center justify-between gap-2 ${isSelected ? 'bg-teal-50 border-teal-500 shadow-xs' : 'bg-white border-slate-200 hover:border-teal-300 hover:bg-slate-50'}">
+                        <div class="min-w-0">
+                            <div class="font-bold text-slate-900 text-sm truncate flex items-center gap-1.5">
+                                <span>${pt.name}</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">${pt.gender}</span>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-0.5 flex flex-wrap gap-x-3">
+                                <span><i class="fa-solid fa-phone text-[10px] mr-1"></i>${pt.phone || 'Chưa có SĐT'}</span>
+                                <span><i class="fa-solid fa-stethoscope text-[10px] mr-1"></i>${lastVisit ? lastVisit.disease : ''}</span>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="inline-block px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold">
+                                ${pt.visits.length} lần khám
+                            </span>
+                            <div class="text-[10px] text-slate-400 mt-0.5">
+                                ${lastVisit ? `${lastVisit.day}/${lastVisit.month}/${lastVisit.year}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function viewPatientRecord(patientId) {
+            viewedPatientId = patientId;
+            renderPatientList();
+
+            const pt = appState.patients.find(p => p.id === patientId);
+            const content = document.getElementById('patient-record-content');
+            if (!pt) return;
+
+            content.innerHTML = `
+                <div class="space-y-4 animate-fade-in">
+                    <div class="bg-teal-50/70 border border-teal-200 rounded-xl p-3.5 flex flex-wrap items-start justify-between gap-3">
+                        <div class="space-y-1 text-xs">
+                            <div class="text-base font-extrabold text-teal-950 flex items-center gap-2">
+                                <span>${pt.name}</span>
+                                <span class="px-2 py-0.5 rounded bg-teal-700 text-white text-[10px] font-bold">${pt.gender}</span>
+                            </div>
+                            <div class="text-slate-700"><strong>SĐT:</strong> ${pt.phone || 'Chưa cập nhật'}</div>
+                            <div class="text-slate-700"><strong>Địa chỉ:</strong> ${pt.address || 'Chưa cập nhật'}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="startNewVisitForExistingPatient('${pt.id}')" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs shadow-sm active:scale-95 transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Khám mới</span>
+                            </button>
+                            <button onclick="deleteEntirePatient('${pt.id}')" title="Xóa toàn bộ hồ sơ" class="px-2.5 py-2 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                        <div class="text-xs font-bold uppercase text-slate-500">Lịch sử khám bệnh (${pt.visits.length} lần)</div>
+                        ${pt.visits.map((v, vIdx) => `
+                            <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                                <div class="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-1 text-xs">
+                                    <span class="font-bold text-slate-800">
+                                        Lần ${pt.visits.length - vIdx}: <span class="text-teal-700">${v.dateTimeDisplay}</span>
+                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-rose-600">${formatMoney(v.grandTotal)}</span>
+                                        <button onclick="deletePatientVisit('${pt.id}', '${v.visitId}')" title="Xóa lần khám này" class="w-6 h-6 rounded bg-rose-50 hover:bg-rose-100 text-rose-600 inline-flex items-center justify-center transition"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
+                                    </div>
+                                </div>
+                                <div class="p-3.5 space-y-2 text-xs">
+                                    <div>
+                                        <span class="font-bold text-slate-700">Loại bệnh:</span>
+                                        <span class="font-semibold text-slate-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/70">${v.disease}</span>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-slate-700 mb-1">Đơn thuốc đã kê:</div>
+                                        ${v.prescriptions.length === 0 ? '<div class="text-slate-400 italic">Không kê thuốc</div>' : `
+                                            <ul class="space-y-1 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                                ${v.prescriptions.map(rx => `
+                                                    <li class="flex items-center justify-between gap-2">
+                                                        <span class="text-slate-800 font-medium">• ${rx.name} <strong class="text-teal-700">(${rx.qty} ${rx.unit})</strong></span>
+                                                        <span class="text-slate-600 font-semibold shrink-0">${formatMoney(rx.subtotal)}</span>
+                                                    </li>
+                                                `).join('')}
+                                            </ul>
+                                        `}
+                                    </div>
+                                    <div class="flex flex-wrap items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                                        <span>Tiền thuốc: <strong>${formatMoney(v.medTotal)}</strong> • Công khám: <strong>${formatMoney(v.examFee)}</strong></span>
+                                        <span>${v.paymentMethod === 'transfer' ? '🏦 Chuyển khoản' : '💵 Tiền mặt'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // =========================================================================
+        // 6. PHÂN HỆ B: QUẢN LÝ THUỐC & TÀI CHÍNH PHÒNG KHÁM THEO THÁNG
+        // =========================================================================
+        function renderInventorySection() {
+            renderMonthSelector();
+            renderFinancialSummary();
+            renderInventoryTable();
+        }
+
+        function renderMonthSelector() {
+            const sel = document.getElementById('month-selector');
+            sel.innerHTML = appState.months.map(m => `
+                <option value="${m.id}" ${m.id === appState.activeMonthId ? 'selected' : ''}>
+                    ${m.label} ${m.isClosed ? '(Đã chốt sổ)' : '(Đang mở)'}
+                </option>
+            `).join('');
+
+            const activeM = getActiveMonth();
+            const badge = document.getElementById('month-status-badge');
+            const rolloverBtn = document.getElementById('btn-rollover-month');
+
+            if (activeM.isClosed) {
+                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700";
+                badge.textContent = "Sổ tháng cũ (Lưu trữ)";
+                rolloverBtn.classList.add('hidden');
+            } else {
+                badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800";
+                badge.textContent = "Đang hoạt động";
+                rolloverBtn.classList.remove('hidden');
+            }
+        }
+
+        function switchInventoryMonth(monthId) {
+            appState.activeMonthId = monthId;
+            saveAppState(false);
+            renderInventorySection();
+        }
+
+        function calculateMonthFinancials(month) {
+            let totalTGN = 0;
+            let totalTGX = 0;
+            let totalDrugProfit = 0;
+
+            appState.drugs.forEach(d => {
+                const row = month.items[d.id] || { sln: 0, nhap: 0, dgn: 0, slx: 0, dgx: 0 };
+                const totalInQty = (Number(row.sln) || 0) + (Number(row.nhap) || 0);
+                const tgn = totalInQty * (Number(row.dgn) || 0);
+                const tgx = (Number(row.slx) || 0) * (Number(row.dgx) || 0);
+                const profit = tgx - tgn;
+
+                totalTGN += tgn;
+                totalTGX += tgx;
+                totalDrugProfit += profit;
+            });
+
+            const totalExamFee = (month.examFees || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            const totalTransfer = (month.transfers || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+            const grandTotal = totalTGX + totalExamFee;
+            const cashTotal = grandTotal - totalTransfer;
+            const netProfit = totalDrugProfit + totalExamFee;
+
+            return {
+                totalTGN,
+                totalTGX,
+                totalDrugProfit,
+                totalExamFee,
+                totalTransfer,
+                grandTotal,
+                cashTotal,
+                netProfit
+            };
+        }
+
+        function renderFinancialSummary() {
+            const month = getActiveMonth();
+            const fin = calculateMonthFinancials(month);
+
+            document.getElementById('stat-total-tgn').textContent = formatMoney(fin.totalTGN);
+            document.getElementById('stat-total-tgx').textContent = formatMoney(fin.totalTGX);
+            document.getElementById('stat-total-drug-profit').textContent = formatMoney(fin.totalDrugProfit);
+            document.getElementById('stat-total-exam-fee').textContent = formatMoney(fin.totalExamFee);
+            document.getElementById('stat-total-transfer').textContent = formatMoney(fin.totalTransfer);
+            document.getElementById('stat-grand-total').textContent = formatMoney(fin.grandTotal);
+            document.getElementById('stat-cash-total').textContent = formatMoney(fin.cashTotal);
+            document.getElementById('stat-net-profit').textContent = formatMoney(fin.netProfit);
+
+            const listExam = document.getElementById('list-exam-fees');
+            if (!month.examFees || month.examFees.length === 0) {
+                listExam.innerHTML = `<div class="text-slate-400 italic text-[11px] py-2">Chưa có khoản công khám nào</div>`;
+            } else {
+                listExam.innerHTML = month.examFees.map((item, idx) => `
+                    <div class="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                        <span class="truncate text-slate-600">${item.note || 'Công khám'}</span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <strong class="text-teal-700">${formatNumber(item.amount)} đ</strong>
+                            <button onclick="removeFinancialEntry('examFees', ${idx})" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const listTrans = document.getElementById('list-transfers');
+            if (!month.transfers || month.transfers.length === 0) {
+                listTrans.innerHTML = `<div class="text-slate-400 italic text-[11px] py-2">Chưa có khoản chuyển khoản nào</div>`;
+            } else {
+                listTrans.innerHTML = month.transfers.map((item, idx) => `
+                    <div class="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                        <span class="truncate text-slate-600">${item.note || 'Chuyển khoản'}</span>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <strong class="text-indigo-700">${formatNumber(item.amount)} đ</strong>
+                            <button onclick="removeFinancialEntry('transfers', ${idx})" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function addFinancialEntry(type) {
+            const inputId = type === 'examFees' ? 'input-exam-fee-item' : 'input-transfer-item';
+            const inp = document.getElementById(inputId);
+            const amount = Math.max(0, Number(inp.value) || 0);
+            if (amount <= 0) {
+                showToast('Vui lòng nhập số tiền lớn hơn 0!', 'error');
+                return;
+            }
+
+            const month = getActiveMonth();
+            month[type].push({
+                id: 'FIN_' + Date.now(),
+                amount,
+                note: type === 'examFees' ? `Công khám #${month[type].length + 1}` : `Chuyển khoản #${month[type].length + 1}`,
+                time: new Date().toLocaleDateString('vi-VN')
+            });
+
+            inp.value = '';
+            saveAppState();
+            renderFinancialSummary();
+        }
+
+        function removeFinancialEntry(type, index) {
+            const month = getActiveMonth();
+            month[type].splice(index, 1);
+            saveAppState();
+            renderFinancialSummary();
+        }
+
+        function renderInventoryTable() {
+            const tbody = document.getElementById('inventory-tbody');
+            const month = getActiveMonth();
+            const catFilter = document.getElementById('filter-drug-category').value;
+            const searchKw = document.getElementById('search-inventory-drug').value.trim().toLowerCase();
+
+            const filteredDrugs = appState.drugs.filter(drug => {
+                const mItem = month.items[drug.id] || { sln: 0, nhap: 0, dgn: 0, slx: 0, dgx: 0 };
+                const matchSearch = !searchKw || drug.name.toLowerCase().includes(searchKw);
+                if (!matchSearch) return false;
+
+                if (catFilter === 'ALL') return true;
+                if (catFilter === 'ACTIVE') {
+                    return (Number(mItem.sln) > 0 || Number(mItem.nhap) > 0 || Number(mItem.slx) > 0);
+                }
+                return drug.category === catFilter;
+            });
+
+            if (filteredDrugs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="13" class="py-10 text-center text-slate-400">
+                            Không có thuốc nào phù hợp với điều kiện lọc hiện tại.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filteredDrugs.map((drug, idx) => {
+                const row = month.items[drug.id] || { sln: 0, nhap: 0, dgn: 0, slx: 0, dgx: 0 };
+                const sln = Number(row.sln) || 0;
+                const nhap = Number(row.nhap) || 0;
+                const dgn = Number(row.dgn) || 0;
+                const slx = Number(row.slx) || 0;
+                const dgx = Number(row.dgx) || 0;
+
+                const totalInQty = sln + nhap;
+                const tgn = totalInQty * dgn;
+                const tgx = slx * dgx;
+                const profit = tgx - tgn;
+                const stock = totalInQty - slx;
+
+                return `
+                    <tr class="hover:bg-teal-50/40 transition">
+                        <td class="py-2 px-2 text-center text-slate-400 font-medium">${idx + 1}</td>
+                        <td class="py-2 px-3 sticky-col bg-white font-semibold text-slate-800 border-r border-slate-100">
+                            <div class="leading-snug">${drug.name}</div>
+                            <div class="text-[10px] text-slate-400 font-normal">${drug.category}</div>
+                        </td>
+                        <td class="py-2 px-2 text-center">
+                            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold text-[11px]">${drug.unit}</span>
+                        </td>
+                        <td class="py-1.5 px-1.5 text-center bg-teal-50/30">
+                            <input type="number" min="0" value="${sln}" 
+                                   onfocus="if(this.value=='0') this.value='';" 
+                                   onblur="if(this.value=='') this.value='0'; updateInventoryCell('${drug.id}', 'sln', this.value);" 
+                                   onchange="updateInventoryCell('${drug.id}', 'sln', this.value)" 
+                                   class="w-16 px-1.5 py-1 rounded border border-slate-200 focus:border-teal-600 text-center font-bold bg-white outline-none">
+                        </td>
+                        <td class="py-1.5 px-1.5 text-center bg-teal-50/30">
+                            <input type="number" min="0" value="${nhap}" 
+                                   onfocus="if(this.value=='0') this.value='';" 
+                                   onblur="if(this.value=='') this.value='0'; updateInventoryCell('${drug.id}', 'nhap', this.value);" 
+                                   onchange="updateInventoryCell('${drug.id}', 'nhap', this.value)" 
+                                   class="w-16 px-1.5 py-1 rounded border border-slate-200 focus:border-teal-600 text-center font-bold bg-white outline-none">
+                        </td>
+                        <td class="py-2 px-2 text-center font-extrabold text-teal-800 bg-teal-50/60">
+                            ${formatNumber(totalInQty)}
+                        </td>
+                        <td class="py-1.5 px-1.5 text-right bg-teal-50/30">
+                            <input type="number" min="0" step="500" value="${dgn}" 
+                                   onfocus="if(this.value=='0') this.value='';" 
+                                   onblur="if(this.value=='') this.value='0'; updateInventoryCell('${drug.id}', 'dgn', this.value);" 
+                                   onchange="updateInventoryCell('${drug.id}', 'dgn', this.value)" 
+                                   class="w-24 px-2 py-1 rounded border border-slate-200 focus:border-teal-600 text-right font-semibold bg-white outline-none">
+                        </td>
+                        <td class="py-2 px-2.5 text-right font-bold text-slate-800 bg-teal-100/40">
+                            ${formatNumber(tgn)}
+                        </td>
+                        <td class="py-1.5 px-1.5 text-center bg-blue-50/30">
+                            <input type="number" min="0" value="${slx}" 
+                                   onfocus="if(this.value=='0') this.value='';" 
+                                   onblur="if(this.value=='') this.value='0'; updateInventoryCell('${drug.id}', 'slx', this.value);" 
+                                   onchange="updateInventoryCell('${drug.id}', 'slx', this.value)" 
+                                   class="w-16 px-1.5 py-1 rounded border border-slate-200 focus:border-blue-600 text-center font-bold bg-white outline-none">
+                        </td>
+                        <td class="py-1.5 px-1.5 text-right bg-blue-50/30">
+                            <input type="number" min="0" step="500" value="${dgx}" 
+                                   onfocus="if(this.value=='0') this.value='';" 
+                                   onblur="if(this.value=='') this.value='0'; updateInventoryCell('${drug.id}', 'dgx', this.value);" 
+                                   onchange="updateInventoryCell('${drug.id}', 'dgx', this.value)" 
+                                   class="w-24 px-2 py-1 rounded border border-slate-200 focus:border-blue-600 text-right font-semibold bg-white outline-none">
+                        </td>
+                        <td class="py-2 px-2.5 text-right font-bold text-blue-800 bg-blue-100/40">
+                            ${formatNumber(tgx)}
+                        </td>
+                        <td class="py-2 px-2.5 text-right font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-rose-600'} bg-emerald-50/50">
+                            ${formatNumber(profit)}
+                        </td>
+                        <td class="py-2 px-2.5 text-center font-extrabold ${stock < 0 ? 'text-rose-600 bg-rose-50' : 'text-amber-900 bg-amber-50/60'}">
+                            ${formatNumber(stock)}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateInventoryCell(drugId, field, rawValue) {
+            const val = Math.max(0, Number(rawValue) || 0);
+            const month = getActiveMonth();
+            if (!month.items[drugId]) {
+                month.items[drugId] = { sln: 0, nhap: 0, dgn: 0, slx: 0, dgx: 0 };
+            }
+            month.items[drugId][field] = val;
+
+            if (field === 'dgx') {
+                const drug = appState.drugs.find(d => d.id === drugId);
+                if (drug) drug.savedSellPrice = val;
+            }
+
+            saveAppState();
+            renderFinancialSummary();
+            renderInventoryTable();
+        }
+
+        // =========================================================================
+        // 7. THÊM TÊN THUỐC MỚI
+        // =========================================================================
+        function openAddDrugModal(prefillName = '') {
+            document.getElementById('new-drug-name').value = prefillName;
+            document.getElementById('new-drug-sln').value = 0;
+            document.getElementById('new-drug-dgn').value = 0;
+            document.getElementById('new-drug-dgx').value = 0;
+            document.getElementById('modal-add-drug').classList.remove('hidden');
+        }
+
+        function handleAddNewDrug(e) {
+            e.preventDefault();
+            const category = document.getElementById('new-drug-category').value;
+            const name = document.getElementById('new-drug-name').value.trim();
+            const unit = document.getElementById('new-drug-unit').value;
+            const sln = Math.max(0, Number(document.getElementById('new-drug-sln').value) || 0);
+            const dgn = Math.max(0, Number(document.getElementById('new-drug-dgn').value) || 0);
+            const dgx = Math.max(0, Number(document.getElementById('new-drug-dgx').value) || 0);
+
+            if (!name) return;
+
+            const newId = 'DRUG_' + Date.now();
+            appState.drugs.unshift({
+                id: newId,
+                category,
+                name,
+                unit,
+                savedSellPrice: dgx
+            });
+
+            appState.months.forEach(m => {
+                m.items[newId] = {
+                    sln: m.id === appState.activeMonthId ? sln : 0,
+                    nhap: 0,
+                    dgn: m.id === appState.activeMonthId ? dgn : 0,
+                    slx: 0,
+                    dgx: m.id === appState.activeMonthId ? dgx : 0
+                };
+            });
+
+            saveAppState();
+            closeModal('modal-add-drug');
+            renderInventorySection();
+            showToast(`Đã thêm thuốc "${name} (${unit})" vào kho và danh sách kê đơn!`, 'success');
+        }
+
+        // =========================================================================
+        // 7.5. TÍNH NĂNG MỚI: TẠO KỲ SỔ SÁCH MỚI (TỪ THÁNG 11 TRỞ VỀ TRƯỚC / TÙY CHỌN)
+        // =========================================================================
+        function setupCustomMonthSync() {
+            const mSel = document.getElementById('custom-month-num');
+            const ySel = document.getElementById('custom-year-num');
+            const lblInp = document.getElementById('custom-month-label-input');
+
+            const updateLabel = () => {
+                lblInp.value = `Tháng ${mSel.value}/${ySel.value}`;
+            };
+            mSel.addEventListener('change', updateLabel);
+            ySel.addEventListener('change', updateLabel);
+        }
+
+        function openCreateCustomMonthModal() {
+            const now = new Date();
+            document.getElementById('custom-month-num').value = now.getMonth() + 1;
+            document.getElementById('custom-year-num').value = now.getFullYear();
+            document.getElementById('custom-month-label-input').value = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+            document.getElementById('custom-month-copy-stock').checked = true;
+            document.getElementById('modal-create-custom-month').classList.remove('hidden');
+        }
+
+        function handleCreateCustomMonth(e) {
+            e.preventDefault();
+            const monthNum = parseInt(document.getElementById('custom-month-num').value) || 1;
+            const yearNum = parseInt(document.getElementById('custom-year-num').value) || 2026;
+            const label = document.getElementById('custom-month-label-input').value.trim() || `Tháng ${monthNum}/${yearNum}`;
+            const copyStock = document.getElementById('custom-month-copy-stock').checked;
+
+            const newMonthId = `M_${yearNum}_${String(monthNum).padStart(2, '0')}`;
+
+            if (appState.months.some(m => m.id === newMonthId)) {
+                showToast(`Kỳ sổ sách "${label}" đã tồn tại trong hệ thống!`, 'error');
+                return;
+            }
+
+            let previousItems = {};
+            if (copyStock && appState.months.length > 0) {
+                const sorted = [...appState.months].sort((a,b) => {
+                    if (a.yearNum !== b.yearNum) return b.yearNum - a.yearNum;
+                    return b.monthNum - a.monthNum;
+                });
+                const prevM = sorted[0];
+                if (prevM && prevM.items) {
+                    previousItems = prevM.items;
+                }
+            }
+
+            const newMonthItems = {};
+            appState.drugs.forEach(drug => {
+                let initialSLN = 0;
+                let initialDGN = 0;
+                let initialDGX = drug.savedSellPrice || 0;
+
+                if (copyStock && previousItems[drug.id]) {
+                    const prevRow = previousItems[drug.id];
+                    const prevStock = ((Number(prevRow.sln) || 0) + (Number(prevRow.nhap) || 0)) - (Number(prevRow.slx) || 0);
+                    initialSLN = Math.max(0, prevStock);
+                    initialDGN = Number(prevRow.dgn) || 0;
+                    initialDGX = Number(prevRow.dgx) || initialDGX;
+                }
+
+                newMonthItems[drug.id] = {
+                    sln: initialSLN,
+                    nhap: 0,
+                    dgn: initialDGN,
+                    slx: 0,
+                    dgx: initialDGX
+                };
+            });
+
+            appState.months.push({
+                id: newMonthId,
+                label: label,
+                yearNum: yearNum,
+                monthNum: monthNum,
+                isClosed: false,
+                items: newMonthItems,
+                examFees: [],
+                transfers: []
+            });
+
+            appState.activeMonthId = newMonthId;
+            saveAppState();
+            closeModal('modal-create-custom-month');
+            renderInventorySection();
+            showToast(`Đã tạo thành công kỳ sổ sách "${label}"!`, 'success');
+        }
+
+        // =========================================================================
+        // 8. QUA THÁNG MỚI & XUẤT FILE EXCEL (.XLSX) ĐẦY ĐỦ CÁC CHỈ SỐ
+        // =========================================================================
+        function openRolloverModal() {
+            const currentM = getActiveMonth();
+            document.getElementById('rollover-old-month-label').textContent = currentM.label;
+
+            const match = currentM.label.match(/(\d+)\/(\d+)/);
+            let nextLabel = 'Tháng tiếp theo';
+            let nextMNum = currentM.monthNum ? currentM.monthNum + 1 : 1;
+            let nextYNum = currentM.yearNum ? currentM.yearNum : 2026;
+            if (nextMNum > 12) { nextMNum = 1; nextYNum += 1; }
+            nextLabel = `Tháng ${nextMNum}/${nextYNum}`;
+
+            document.getElementById('rollover-new-month-name').value = nextLabel;
+            document.getElementById('modal-rollover').classList.remove('hidden');
+        }
+
+        function executeMonthRollover() {
+            const oldMonth = getActiveMonth();
+            const newMonthLabel = document.getElementById('rollover-new-month-name').value.trim();
+            if (!newMonthLabel) {
+                showToast('Vui lòng nhập tên trang tính tháng mới!', 'error');
+                return;
+            }
+
+            exportCurrentMonthExcel(true);
+            oldMonth.isClosed = true;
+
+            const match = newMonthLabel.match(/(\d+)\/(\d+)/);
+            let nMonth = match ? parseInt(match[1]) : (oldMonth.monthNum ? oldMonth.monthNum + 1 : 1);
+            let nYear = match ? parseInt(match[2]) : (oldMonth.yearNum ? oldMonth.yearNum : 2026);
+            if (nMonth > 12) { nMonth = 1; nYear += 1; }
+
+            const newItems = {};
+            appState.drugs.forEach(drug => {
+                const oldRow = oldMonth.items[drug.id] || { sln: 0, nhap: 0, dgn: 0, slx: 0, dgx: 0 };
+                const oldStock = ((Number(oldRow.sln) || 0) + (Number(oldRow.nhap) || 0)) - (Number(oldRow.slx) || 0);
+
+                newItems[drug.id] = {
+                    sln: Math.max(0, oldStock),
+                    nhap: 0,
+                    dgn: Number(oldRow.dgn) || 0,
+                    slx: 0,
+                    dgx: Number(oldRow.dgx) || Number(drug.savedSellPrice) || 0
+                };
+            });
+
+            const newMonthId = `M_${nYear}_${String(nMonth).padStart(2, '0')}`;
+            appState.months.push({
+                id: newMonthId,
+                label: newMonthLabel,
+                yearNum: nYear,
+                monthNum: nMonth,
+                isClosed: false,
+                items: newItems,
+                examFees: [],
+                transfers: []
+            });
+            appState.activeMonthId = newMonthId;
+
+            saveAppState();
+            closeModal('modal-rollover');
+            renderInventorySection();
+            showToast(`Đã xuất file Excel "${oldMonth.label}" và tạo "${newMonthLabel}" với hàng tồn chuyển sang Số LN!`, 'success');
+        }
+
+        function exportCurrentMonthExcel(isArchive = false) {
+            const month = getActiveMonth();
+            const fin = calculateMonthFinancials(month);
+
+            const inventoryRows = [
+                ["PHÒNG KHÁM DL MAI XUÂN SƠN"],
+                [`BÁO CÁO TỔNG HỢP KHO THUỐC & TÀI CHÍNH - ${month.label.toUpperCase()}`],
+                [`Ngày xuất báo cáo: ${new Date().toLocaleString('vi-VN')}`],
+                [],
+                ["TỔNG KẾT TÀI CHÍNH THÁNG", "", "", "", "", "", "", "", "", "", "", "", "", ""],
+                ["Tổng Giá Nhập (TGN):", fin.totalTGN, "", "Tổng Giá Xuất (TGX):", fin.totalTGX, "", "Lãi Bán Thuốc:", fin.totalDrugProfit, "", "", "", "", "", ""],
+                ["Tổng Công Khám:", fin.totalExamFee, "", "Tổng Chuyển Khoản:", fin.totalTransfer, "", "Tiền Mặt Thực Thu:", fin.cashTotal, "", "", "", "", "", ""],
+                ["TỔNG CỘNG DOANH THU:", fin.grandTotal, "", "TỔNG LỢI NHUẬN:", fin.netProfit, "", "", "", "", "", "", "", "", ""],
+                [],
+                ["DANH MỤC KHO THUỐC CHI TIẾT TRONG THÁNG"],
+                ["STT", "Nhóm thuốc", "Tên thuốc / Hoạt chất", "ĐVT", "Số LN", "Nhập", "Tổng SL Nhập", "ĐGN (VNĐ)", "TGN (VNĐ)", "Số LX", "ĐGX (VNĐ)", "TGX (VNĐ)", "LÃI (TGX - TGN)", "HÀNG TỒN"]
+            ];
+
+            appState.drugs.forEach((drug, idx) => {
+                const r = month.items[drug.id] || { sln: 0, nhap: 0, dgn: 0, slx: 0, dgx: 0 };
+                const sln = Number(r.sln) || 0;
+                const nhap = Number(r.nhap) || 0;
+                const totalIn = sln + nhap;
+                const dgn = Number(r.dgn) || 0;
+                const tgn = totalIn * dgn;
+                const slx = Number(r.slx) || 0;
+                const dgx = Number(r.dgx) || 0;
+                const tgx = slx * dgx;
+                const profit = tgx - tgn;
+                const stock = totalIn - slx;
+
+                inventoryRows.push([
+                    idx + 1, drug.category, drug.name, drug.unit,
+                    sln, nhap, totalIn, dgn, tgn, slx, dgx, tgx, profit, stock
+                ]);
+            });
+
+            inventoryRows.push([]);
+            inventoryRows.push(["", "", "TỔNG CỘNG KHO THUỐC", "", "", "", "", "", fin.totalTGN, "", "", fin.totalTGX, fin.totalDrugProfit, ""]);
+
+            const financeRows = [
+                ["PHÒNG KHÁM DL MAI XUÂN SƠN"],
+                [`CHI TIẾT CÔNG KHÁM & CHUYỂN KHOẢN - ${month.label.toUpperCase()}`],
+                [],
+                ["DANH MỤC CÔNG KHÁM", "Ghi chú", "Số tiền (VNĐ)"]
+            ];
+
+            (month.examFees || []).forEach((ef, i) => {
+                financeRows.push([`Công khám #${i + 1}`, ef.note || '', Number(ef.amount) || 0]);
+            });
+            financeRows.push(["TỔNG CÔNG KHÁM", "", fin.totalExamFee]);
+
+            financeRows.push([]);
+            financeRows.push(["DANH MỤC CHUYỂN KHOẢN", "Ghi chú", "Số tiền (VNĐ)"]);
+            (month.transfers || []).forEach((tr, i) => {
+                financeRows.push([`Chuyển khoản #${i + 1}`, tr.note || '', Number(tr.amount) || 0]);
+            });
+            financeRows.push(["TỔNG CHUYỂN KHOẢN", "", fin.totalTransfer]);
+
+            const wb = XLSX.utils.book_new();
+            const wsInventory = XLSX.utils.aoa_to_sheet(inventoryRows);
+            const wsFinance = XLSX.utils.aoa_to_sheet(financeRows);
+
+            XLSX.utils.book_append_sheet(wb, wsInventory, "Kho_Thuoc_Va_Tai_Chinh");
+            XLSX.utils.book_append_sheet(wb, wsFinance, "Chi_Tiet_Thu_Chi");
+
+            const safeMonthName = month.label.replace(/[^a-zA-Z0-9\u00C0-\u1EF9]/g, '_');
+            const fileName = `PK_MaiXuanSon_${safeMonthName}${isArchive ? '_ChotSo' : ''}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            if (!isArchive) {
+                showToast(`Đã xuất file Excel "${fileName}" thành công!`, 'success');
+            }
+        }
+
+        // =========================================================================
+        // 9. ĐỒNG BỘ TỰ ĐỘNG REALTIME GIỮA 2 ĐIỆN THOẠI & MÁY TÍNH
+        // =========================================================================
+        function openSyncModal() {
+            document.getElementById('sync-firebase-url').value = appState.cloudConfig?.url || '';
+            document.getElementById('sync-clinic-room-code').value = appState.cloudConfig?.roomCode || 'PK-MAIXUANSON-01';
+            updateCloudStatusUI();
+            document.getElementById('modal-sync').classList.remove('hidden');
+        }
+
+        function updateCloudStatusUI() {
+            const badge = document.getElementById('cloud-conn-badge');
+            if (!badge) return;
+            if (appState.cloudConfig && appState.cloudConfig.url) {
+                badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold";
+                badge.textContent = "Đang chạy đồng bộ Realtime";
+            } else {
+                badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold";
+                badge.textContent = "Chưa kết nối Cloud";
+            }
+        }
+
+        function getNormalizedFirebaseEndpoint() {
+            let baseUrl = (appState.cloudConfig?.url || '').trim().replace(/\/+$/, '');
+            const roomCode = (appState.cloudConfig?.roomCode || 'PK-MAIXUANSON-01').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+            if (!baseUrl) return null;
+            return `${baseUrl}/clinics/${roomCode}.json`;
+        }
+
+        function startRealtimeCloudListener() {
+            if (realtimeEventSource) {
+                realtimeEventSource.close();
+                realtimeEventSource = null;
+            }
+            if (realtimePollTimer) {
+                clearInterval(realtimePollTimer);
+                realtimePollTimer = null;
+            }
+
+            const endpoint = getNormalizedFirebaseEndpoint();
+            if (!endpoint) return;
+
+            try {
+                realtimeEventSource = new EventSource(endpoint);
+                const handleStreamUpdate = (event) => {
+                    if (!event.data || event.data === 'null') return;
+                    try {
+                        const parsed = JSON.parse(event.data);
+                        const payload = (parsed && parsed.data && parsed.data.data) ? parsed.data : parsed;
+                        applyIncomingCloudPayload(payload);
+                    } catch (e) {}
+                };
+                realtimeEventSource.addEventListener('put', handleStreamUpdate);
+                realtimeEventSource.addEventListener('patch', handleStreamUpdate);
+            } catch (e) {}
+
+            realtimePollTimer = setInterval(async () => {
+                if (isPushingToCloud) return;
+                try {
+                    const res = await fetch(endpoint, { cache: 'no-store' });
+                    if (!res.ok) return;
+                    const payload = await res.json();
+                    applyIncomingCloudPayload(payload);
+                } catch (e) {}
+            }, 2500);
+        }
+
+        function applyIncomingCloudPayload(payload) {
+            if (!payload || !payload.data || !Array.isArray(payload.data.drugs)) return;
+            if (payload.updatedAt && payload.updatedAt === lastSyncedTimestamp) return;
+
+            const keepConfig = appState.cloudConfig;
+            const incomingData = payload.data;
+            incomingData.cloudConfig = keepConfig;
+
+            const localSignature = JSON.stringify({ p: appState.patients, m: appState.months, d: appState.drugs });
+            const remoteSignature = JSON.stringify({ p: incomingData.patients, m: incomingData.months, d: incomingData.drugs });
+
+            if (payload.updatedAt) {
+                lastSyncedTimestamp = payload.updatedAt;
+            }
+
+            if (localSignature !== remoteSignature) {
+                appState = incomingData;
+                sortMonthsChronologically();
+                saveAppState(false);
+                
+                const activeTag = document.activeElement ? document.activeElement.tagName : '';
+                const isTypingInInventory = activeTag === 'INPUT' && document.activeElement.closest('#inventory-tbody');
+                if (!isTypingInInventory) {
+                    renderAll();
+                } else {
+                    renderFinancialSummary();
+                    renderPatientList();
+                }
+
+                showToast('Đã tự động cập nhật số liệu mới từ thiết bị kia!', 'info');
+            }
+        }
+
+        async function saveCloudConfigAndPush() {
+            const url = document.getElementById('sync-firebase-url').value.trim();
+            const roomCode = document.getElementById('sync-clinic-room-code').value.trim() || 'PK-MAIXUANSON-01';
+            if (!url || !url.startsWith('http')) {
+                showToast('Vui lòng nhập đường dẫn Firebase Realtime Database URL hợp lệ (bắt đầu bằng https://)', 'error');
+                return;
+            }
+            appState.cloudConfig = { url, roomCode };
+            saveAppState(false);
+            updateCloudStatusUI();
+
+            const endpoint = getNormalizedFirebaseEndpoint();
+            const nowIso = new Date().toISOString();
+            isPushingToCloud = true;
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        updatedAt: nowIso,
+                        data: appState
+                    })
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                lastSyncedTimestamp = nowIso;
+                startRealtimeCloudListener();
+                closeModal('modal-sync');
+                showToast('Đã kết nối & đẩy dữ liệu lên Cloud! Từ nay 2 máy sẽ tự động đồng bộ tức thì.', 'success');
+            } catch (err) {
+                showToast('Lỗi kết nối Cloud: Hãy kiểm tra lại URL hoặc quyền đọc/ghi (Rules) của Firebase.', 'error');
+            } finally {
+                isPushingToCloud = false;
+            }
+        }
+
+        async function connectAndListenOnly() {
+            const url = document.getElementById('sync-firebase-url').value.trim();
+            const roomCode = document.getElementById('sync-clinic-room-code').value.trim() || 'PK-MAIXUANSON-01';
+            if (!url || !url.startsWith('http')) {
+                showToast('Vui lòng nhập Firebase URL trước khi kết nối!', 'error');
+                return;
+            }
+            appState.cloudConfig = { url, roomCode };
+            saveAppState(false);
+            updateCloudStatusUI();
+
+            const endpoint = getNormalizedFirebaseEndpoint();
+            try {
+                const res = await fetch(endpoint, { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const payload = await res.json();
+                if (payload && payload.data && Array.isArray(payload.data.drugs)) {
+                    applyIncomingCloudPayload(payload);
+                }
+                startRealtimeCloudListener();
+                closeModal('modal-sync');
+                showToast('Đã bật chế độ tự động nhận số liệu Realtime từ máy kia!', 'success');
+            } catch (err) {
+                showToast('Không thể kết nối tới Cloud. Kiểm tra kết nối mạng và URL.', 'error');
+            }
+        }
+
+        async function pushToCloudSilent() {
+            const endpoint = getNormalizedFirebaseEndpoint();
+            if (!endpoint) return;
+            const nowIso = new Date().toISOString();
+            isPushingToCloud = true;
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        updatedAt: nowIso,
+                        data: appState
+                    })
+                });
+                if (res.ok) {
+                    lastSyncedTimestamp = nowIso;
+                }
+            } catch (e) {} finally {
+                isPushingToCloud = false;
+            }
+        }
+
+        function exportBackupJSON() {
+            const blob = new Blob([JSON.stringify(appState, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const dateStr = new Date().toISOString().slice(0, 10);
+            a.href = url;
+            a.download = `DongBo_PK_MaiXuanSon_${dateStr}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Đã xuất tệp sao lưu .json! Hãy gửi tệp này sang điện thoại/máy tính để đồng bộ.', 'success');
+        }
+
+        function importBackupJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported && Array.isArray(imported.drugs) && Array.isArray(imported.months)) {
+                        appState = imported;
+                        sortMonthsChronologically();
+                        saveAppState(true);
+                        renderAll();
+                        closeModal('modal-sync');
+                        showToast('Đồng bộ dữ liệu từ tệp thành công!', 'success');
+                    } else {
+                        showToast('Tệp không đúng định dạng dữ liệu của Phòng khám!', 'error');
+                    }
+                } catch (err) {
+                    showToast('Lỗi đọc tệp sao lưu!', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // =========================================================================
+        // 10. TIỆN ÍCH CHUNG (MODAL, TOAST, RENDER ALL)
+        // =========================================================================
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-800 text-white border-emerald-600',
+                error: 'bg-rose-700 text-white border-rose-500',
+                info: 'bg-slate-800 text-white border-slate-600'
+            };
+            const icons = {
+                success: 'fa-circle-check text-emerald-300',
+                error: 'fa-circle-exclamation text-rose-300',
+                info: 'fa-circle-info text-sky-300'
+            };
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-xl border text-xs sm:text-sm font-semibold flex items-start gap-2.5 animate-fade-in ${colors[type] || colors.info}`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icons[type] || icons.info} mt-0.5 text-base"></i>
+                <span class="leading-snug">${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function renderAll() {
+            renderRxItemsTable();
+            renderPatientList();
+            if (viewedPatientId) {
+                viewPatientRecord(viewedPatientId);
+            }
+            renderInventorySection();
+        }
+    </script>
+</body>
+</html>
